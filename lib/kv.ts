@@ -1,4 +1,4 @@
-import { kv as vercelKv, createClient } from '@vercel/kv';
+import { createClient } from 'redis';
 import fs from 'fs';
 import path from 'path';
 
@@ -36,10 +36,6 @@ function writeMockStore(store: Record<string, any>) {
   }
 }
 
-// Check if Vercel KV env vars are set
-const isProdKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
-const isProdRedis = !!(process.env.REDIS_REST_API_URL && process.env.REDIS_REST_API_TOKEN);
-
 export interface KVStore {
   get<T>(key: string): Promise<T | null>;
   set(key: string, value: any): Promise<'OK' | null>;
@@ -53,24 +49,92 @@ export interface KVStore {
   lrange<T>(key: string, start: number, stop: number): Promise<T[]>;
 }
 
-// Determine which KV client to use: KV environment variables, or Redis integration variables
-const getActiveClient = (): KVStore => {
-  if (isProdKV) {
-    return vercelKv as unknown as KVStore;
-  }
-  if (isProdRedis) {
-    return createClient({
-      url: process.env.REDIS_REST_API_URL!,
-      token: process.env.REDIS_REST_API_TOKEN!,
-    }) as unknown as KVStore;
-  }
-  return null as any;
-};
+const isProdRedis = !!process.env.REDIS_URL;
 
-const activeClient = getActiveClient();
+let redisClient: any = null;
 
-export const kv: KVStore = activeClient
-  ? activeClient
+async function getRedisClient() {
+  if (!redisClient) {
+    redisClient = createClient({ url: process.env.REDIS_URL });
+    redisClient.on('error', (err: any) => console.error('Redis Client Error', err));
+    await redisClient.connect();
+  }
+  return redisClient;
+}
+
+export const kv: KVStore = isProdRedis
+  ? {
+      async get<T>(key: string): Promise<T | null> {
+        const client = await getRedisClient();
+        const val = await client.get(key);
+        if (val === null) return null;
+        try {
+          return JSON.parse(val) as T;
+        } catch {
+          return val as unknown as T;
+        }
+      },
+      async set(key: string, value: any): Promise<'OK' | null> {
+        const client = await getRedisClient();
+        const valStr = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        await client.set(key, valStr);
+        return 'OK';
+      },
+      async del(key: string): Promise<number> {
+        const client = await getRedisClient();
+        return await client.del(key);
+      },
+      async hset(key: string, value: Record<string, any>): Promise<number> {
+        const client = await getRedisClient();
+        const stringified: Record<string, string> = {};
+        for (const [k, v] of Object.entries(value)) {
+          stringified[k] = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        }
+        return await client.hSet(key, stringified);
+      },
+      async hgetall<T>(key: string): Promise<T | null> {
+        const client = await getRedisClient();
+        const res = await client.hGetAll(key);
+        if (!res || Object.keys(res).length === 0) return null;
+        const parsed: any = {};
+        for (const [k, v] of Object.entries(res)) {
+          try {
+            parsed[k] = JSON.parse(v as string);
+          } catch {
+            parsed[k] = v;
+          }
+        }
+        return parsed as T;
+      },
+      async sadd(key: string, ...members: string[]): Promise<number> {
+        const client = await getRedisClient();
+        return await client.sAdd(key, members);
+      },
+      async srem(key: string, ...members: string[]): Promise<number> {
+        const client = await getRedisClient();
+        return await client.sRem(key, members);
+      },
+      async smembers(key: string): Promise<string[]> {
+        const client = await getRedisClient();
+        return await client.sMembers(key);
+      },
+      async lpush(key: string, ...elements: any[]): Promise<number> {
+        const client = await getRedisClient();
+        const stringified = elements.map(el => typeof el === 'object' ? JSON.stringify(el) : String(el));
+        return await client.lPush(key, stringified);
+      },
+      async lrange<T>(key: string, start: number, stop: number): Promise<T[]> {
+        const client = await getRedisClient();
+        const res = await client.lRange(key, start, stop);
+        return res.map((val: string) => {
+          try {
+            return JSON.parse(val) as T;
+          } catch {
+            return val as unknown as T;
+          }
+        });
+      },
+    }
   : {
       async get<T>(key: string): Promise<T | null> {
         const store = readMockStore();
@@ -158,7 +222,6 @@ export const kv: KVStore = activeClient
         if (!Array.isArray(store[key])) {
           store[key] = [];
         }
-        // lpush prepends elements in reverse order of args to make lpush(a, b) result in [b, a, ...]
         const reversed = [...elements].reverse();
         store[key] = [...reversed, ...store[key]];
         writeMockStore(store);
