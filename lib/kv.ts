@@ -1,4 +1,4 @@
-import { kv as vercelKv } from '@vercel/kv';
+import { kv as vercelKv, createClient } from '@vercel/kv';
 import fs from 'fs';
 import path from 'path';
 
@@ -38,6 +38,7 @@ function writeMockStore(store: Record<string, any>) {
 
 // Check if Vercel KV env vars are set
 const isProdKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const isProdRedis = !!(process.env.REDIS_REST_API_URL && process.env.REDIS_REST_API_TOKEN);
 
 export interface KVStore {
   get<T>(key: string): Promise<T | null>;
@@ -52,8 +53,24 @@ export interface KVStore {
   lrange<T>(key: string, start: number, stop: number): Promise<T[]>;
 }
 
-export const kv: KVStore = isProdKV
-  ? (vercelKv as unknown as KVStore)
+// Determine which KV client to use: KV environment variables, or Redis integration variables
+const getActiveClient = (): KVStore => {
+  if (isProdKV) {
+    return vercelKv as unknown as KVStore;
+  }
+  if (isProdRedis) {
+    return createClient({
+      url: process.env.REDIS_REST_API_URL!,
+      token: process.env.REDIS_REST_API_TOKEN!,
+    }) as unknown as KVStore;
+  }
+  return null as any;
+};
+
+const activeClient = getActiveClient();
+
+export const kv: KVStore = activeClient
+  ? activeClient
   : {
       async get<T>(key: string): Promise<T | null> {
         const store = readMockStore();
