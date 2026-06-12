@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const trimmedUsername = username.trim();
     const userKey = `user:${trimmedUsername}`;
     
-    const user = await kv.hgetall<{ passwordHash: string; token: string }>(userKey);
+    const user = await kv.hgetall<{ passwordHash: string; token: string; webhookUrl?: string }>(userKey);
     if (!user) {
       return NextResponse.json(
         { status: 'error', message: 'Invalid username or password' },
@@ -33,7 +33,11 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ status: 'success', token: user.token });
+    return NextResponse.json({
+      status: 'success',
+      token: user.token,
+      webhookUrl: user.webhookUrl || null
+    });
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

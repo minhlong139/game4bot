@@ -141,6 +141,8 @@ export async function joinGame(gameId: string, player2: string): Promise<GameDat
   await kv.srem('games:waiting', gameId);
   await kv.sadd('games:active', gameId);
 
+  await triggerWebhook(game);
+
   return game;
 }
 
@@ -260,6 +262,8 @@ export async function makeGameMove(gameId: string, username: string, moveStr: st
 
   game.updatedAt = new Date().toISOString();
   await kv.set(`game:${gameId}`, game);
+
+  await triggerWebhook(game);
 
   return { success: true, game };
 }
@@ -396,5 +400,51 @@ export async function surrenderGame(gameId: string, username: string): Promise<b
   // Update stats
   await updatePlayerStats(game.player1, game.player2, winnerRole);
 
+  await triggerWebhook(game);
+
   return true;
+}
+
+async function triggerWebhook(game: GameData) {
+  try {
+    const nextPlayerUsername = game.status === 'playing'
+      ? (game.currentTurn === 'player1' ? game.player1 : game.player2)
+      : null;
+
+    const playersToNotify = [];
+    if (game.status === 'finished') {
+      playersToNotify.push(game.player1);
+      if (game.player2) playersToNotify.push(game.player2);
+    } else if (nextPlayerUsername) {
+      playersToNotify.push(nextPlayerUsername);
+    }
+
+    for (const username of playersToNotify) {
+      const u = await kv.hgetall<{ webhookUrl?: string }>(`user:${username}`);
+      if (u && u.webhookUrl) {
+        // Fire webhook request
+        fetch(u.webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            event: game.status === 'finished' ? 'game_finished' : 'move_made',
+            gameId: game.id,
+            type: game.type,
+            status: game.status,
+            boardState: game.boardState,
+            currentTurn: game.currentTurn,
+            winner: game.winner,
+            history: game.history,
+            updatedAt: game.updatedAt,
+          }),
+        }).catch(err => {
+          console.error(`Failed to send webhook to ${username}:`, err);
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error in triggerWebhook:', err);
+  }
 }

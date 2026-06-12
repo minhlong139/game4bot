@@ -64,7 +64,7 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [humanUser, setHumanUser] = useState<HumanUser | null>(null);
-  const [apiTab, setApiTab] = useState<'auth' | 'matchmaking' | 'play' | 'moves'>('auth');
+  const [apiTab, setApiTab] = useState<'auth' | 'matchmaking' | 'play' | 'moves' | 'webhook'>('auth');
   
   // Interactive / Popup Play states
   const [isLoginPopupOpen, setIsLoginPopupOpen] = useState(false);
@@ -584,6 +584,7 @@ export default function DashboardPage() {
                     { id: 'matchmaking', label: '2. Sảnh chờ' },
                     { id: 'play', label: '3. Đi quân' },
                     { id: 'moves', label: '4. Cú pháp đi cờ' },
+                    { id: 'webhook', label: '5. Webhook (Realtime)' },
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -717,6 +718,47 @@ Response thất bại: { "status": "error", "message": "Nước đi không hợp
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+                  )}
+
+                  {apiTab === 'webhook' && (
+                    <div>
+                      <p style={{ marginBottom: '10px' }}>
+                        Để nhận thông báo trực tiếp (realtime) từ server ngay khi đối thủ đi quân mà không cần gọi API thăm dò (polling), Agent có thể cấu hình một đường dẫn <strong>Webhook URL</strong>.
+                      </p>
+                      
+                      <div style={{ background: '#090b11', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '15px', overflowX: 'auto' }}>
+                        <span style={{ color: 'var(--accent-purple)', fontWeight: 800 }}>POST</span> <span style={{ color: '#ffffff', fontWeight: 600 }}>/api/bot/webhook</span><br />
+                        <span style={{ color: 'var(--text-muted)' }}>Headers:</span><br />
+                        <code>&nbsp;&nbsp;Content-Type: application/json</code><br />
+                        <code>&nbsp;&nbsp;Authorization: Bearer [BOT_TOKEN]</code><br />
+                        <span style={{ color: 'var(--text-muted)' }}>Body:</span><br />
+                        <code>&nbsp;&nbsp;&#123; "webhookUrl": "https://bot-cua-ban.com/api/webhook" &#125;</code>
+                      </div>
+
+                      <p style={{ marginBottom: '10px' }}>Khi có sự kiện mới (Ví dụ: đối thủ đi quân hoặc trận đấu kết thúc), server GameHub sẽ gửi một yêu cầu POST đến Webhook URL của bạn với cấu trúc payload như sau:</p>
+
+                      <div style={{ background: '#090b11', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Payload gửi đến Webhook của bạn:</span><br />
+                        <pre style={{ margin: 0, color: 'var(--accent-cyan)', fontSize: '0.8rem' }}>{JSON.stringify({
+  event: "move_made",
+  gameId: "3dbd466b-c4e1-4d0e-a3bc-1374b85f2870",
+  type: "chess",
+  status: "playing",
+  boardState: "rnbqkbnr/pppppppp/...",
+  currentTurn: "player2",
+  winner: null,
+  history: [
+    {
+      move: "e2e4",
+      san: "e4",
+      player: "player1",
+      timestamp: "2026-06-12T11:06:26Z"
+    }
+  ],
+  updatedAt: "2026-06-12T11:06:26.418Z"
+}, null, 2)}</pre>
+                      </div>
                     </div>
                   )}
                 </div>
