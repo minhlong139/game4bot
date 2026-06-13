@@ -101,6 +101,32 @@ const getHistoryTurns = (history: MoveHistoryEntry[], gameCreatedAt: string): Tu
   return turns;
 };
 
+const getPlayerColors = (gameType: string) => {
+  if (gameType === 'chess') {
+    return {
+      p1Color: '#ffffff',
+      p2Color: '#c084fc',
+      p1ActiveBg: 'rgba(255, 255, 255, 0.15)',
+      p2ActiveBg: 'rgba(168, 85, 247, 0.15)'
+    };
+  } else if (gameType === 'xiangqi') {
+    return {
+      p1Color: '#f87171',
+      p2Color: '#38bdf8',
+      p1ActiveBg: 'rgba(239, 68, 68, 0.15)',
+      p2ActiveBg: 'rgba(56, 189, 248, 0.15)'
+    };
+  } else { // gomoku (caro)
+    return {
+      p1Color: '#22d3ee',
+      p2Color: '#e879f9',
+      p1ActiveBg: 'rgba(34, 211, 238, 0.15)',
+      p2ActiveBg: 'rgba(232, 121, 249, 0.15)'
+    };
+  }
+};
+
+
 
 // Chinese characters for Xiangqi
 const XIANGQI_PIECE_LABELS: Record<string, string> = {
@@ -1035,7 +1061,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
         {/* Right side: Status Badge */}
         <div>
           {isTurn && (
-            <span className="pulse-opacity" style={{
+            <span style={{
               backgroundColor: badgeColor,
               border: `1px solid ${sideColor}50`,
               color: sideColor,
@@ -1046,16 +1072,13 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
               display: 'inline-flex',
               alignItems: 'center',
               gap: '5px',
-              animation: 'pulse-opacity 1.5s infinite alternate'
             }}>
-              <span style={{
-                width: '8px',
-                height: '8px',
-                backgroundColor: sideColor,
-                borderRadius: '50%',
-                display: 'inline-block'
-              }} />
-              LƯỢT ĐI
+              ĐANG SUY NGHĨ
+              <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '2px' }}>
+                <span className="thinking-dot" />
+                <span className="thinking-dot" />
+                <span className="thinking-dot" />
+              </span>
             </span>
           )}
           {isWinner && (
@@ -1260,6 +1283,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
           
           {/* Match Info Box */}
           {(game.type !== 'chess' && game.type !== 'xiangqi') && (() => {
+            const { p1Color, p2Color } = getPlayerColors(game.type);
             const lastMoveEntry = game.history.length > 0 ? game.history[game.history.length - 1] : null;
 
             const isP1Turn = game.status === 'playing' && game.currentTurn === 'player1';
@@ -1317,7 +1341,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>PLAYER 1 (Đi Trước)</div>
                     <div style={{
                       fontWeight: 700,
-                      color: isP1Winner ? '#fbbf24' : 'var(--accent-cyan)',
+                      color: isP1Winner ? '#fbbf24' : p1Color,
                       fontSize: isP1Winner ? '1.25rem' : '1.1rem',
                       marginTop: '2px',
                       textDecoration: isP1Loser ? 'line-through' : 'none',
@@ -1336,15 +1360,19 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                         gap: '4px',
                         fontSize: '0.7rem',
                         fontWeight: 800,
-                        padding: '2px 8px',
+                        padding: '4px 8px',
                         borderRadius: '4px',
                         marginTop: '6px',
-                        backgroundColor: 'rgba(6, 182, 212, 0.15)',
-                        border: '1px solid var(--accent-cyan)',
-                        color: 'var(--accent-cyan)',
-                        animation: 'pulse 1.5s infinite alternate'
+                        backgroundColor: `${p1Color}22`,
+                        border: `1px solid ${p1Color}50`,
+                        color: p1Color,
                       }}>
-                        👉 Đến lượt
+                        ĐANG SUY NGHĨ
+                        <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '2px' }}>
+                          <span className="thinking-dot" />
+                          <span className="thinking-dot" />
+                          <span className="thinking-dot" />
+                        </span>
                       </div>
                     )}
                     {isP1LastMove && (
@@ -1449,7 +1477,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>PLAYER 2 (Đi Sau)</div>
                     <div style={{
                       fontWeight: 700,
-                      color: isP2Winner ? '#fbbf24' : 'var(--accent-purple)',
+                      color: isP2Winner ? '#fbbf24' : p2Color,
                       fontSize: isP2Winner ? '1.25rem' : '1.1rem',
                       marginTop: '5px',
                       textDecoration: isP2Loser ? 'line-through' : 'none',
@@ -1498,15 +1526,19 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                         gap: '4px',
                         fontSize: '0.7rem',
                         fontWeight: 800,
-                        padding: '2px 8px',
+                        padding: '4px 8px',
                         borderRadius: '4px',
                         marginTop: '6px',
-                        backgroundColor: 'rgba(168, 85, 247, 0.15)',
-                        border: '1px solid var(--accent-purple)',
-                        color: '#d8b4fe',
-                        animation: 'pulse 1.5s infinite alternate'
+                        backgroundColor: `${p2Color}22`,
+                        border: `1px solid ${p2Color}50`,
+                        color: p2Color,
                       }}>
-                        👉 Đến lượt
+                        ĐANG SUY NGHĨ
+                        <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: '2px' }}>
+                          <span className="thinking-dot" />
+                          <span className="thinking-dot" />
+                          <span className="thinking-dot" />
+                        </span>
                       </div>
                     )}
                     {isP2LastMove && (
@@ -1604,129 +1636,132 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                 Chưa có nước đi nào được thực hiện.
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-                {/* Table Header */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '50px 1fr 1fr',
-                  gap: '8px',
-                  paddingBottom: '10px',
-                  borderBottom: '1px solid var(--border-color)',
-                  marginBottom: '10px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  color: 'var(--text-muted)',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ textAlign: 'left' }}>Lượt</div>
-                  <div style={{ color: 'var(--accent-cyan)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {formatPlayerName(game.player1)}
+            ) : (() => {
+              const { p1Color, p2Color, p1ActiveBg, p2ActiveBg } = getPlayerColors(game.type);
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                  {/* Table Header */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '50px 1fr 1fr',
+                    gap: '8px',
+                    paddingBottom: '10px',
+                    borderBottom: '1px solid var(--border-color)',
+                    marginBottom: '10px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'var(--text-muted)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ textAlign: 'left' }}>Lượt</div>
+                    <div style={{ color: p1Color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {formatPlayerName(game.player1)}
+                    </div>
+                    <div style={{ color: p2Color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {formatPlayerName(game.player2)}
+                    </div>
                   </div>
-                  <div style={{ color: 'var(--accent-purple)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {formatPlayerName(game.player2)}
-                  </div>
-                </div>
 
-                {/* Table Body */}
-                <div style={{
-                  flex: 1,
-                  overflowY: 'auto',
-                  maxHeight: '400px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  paddingRight: '5px'
-                }}>
-                  {getHistoryTurns(game.history, game.createdAt).reverse().map((turn) => (
-                    <div 
-                      key={turn.turnNumber}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '50px 1fr 1fr',
-                        gap: '8px',
-                        alignItems: 'center',
-                        padding: '6px 0',
-                        borderBottom: '1px solid rgba(255,255,255,0.03)'
-                      }}
-                    >
-                      {/* Turn Number */}
-                      <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)' }}>
-                        #{turn.turnNumber}
-                      </div>
-
-                      {/* Player 1 Move */}
-                      {turn.move1 ? (
-                        <div 
-                          onClick={() => setHistoryIndex(turn.move1!.originalIndex)}
-                          style={{
-                            padding: '8px 10px',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            background: historyIndex === turn.move1.originalIndex ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255,255,255,0.02)',
-                            border: historyIndex === turn.move1.originalIndex ? '1px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.05)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            transition: 'all 0.2s ease',
-                          }}
-                          className="history-item"
-                        >
-                          <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--accent-cyan)' }}>
-                            {turn.move1.san || turn.move1.move}
-                          </span>
-                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            +{formatTime(turn.move1.thinkingTimeMs)} ({formatTime(turn.move1.cumulativeTimeMs)})
-                          </span>
+                  {/* Table Body */}
+                  <div style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    maxHeight: '400px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    paddingRight: '5px'
+                  }}>
+                    {getHistoryTurns(game.history, game.createdAt).reverse().map((turn) => (
+                      <div 
+                        key={turn.turnNumber}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '50px 1fr 1fr',
+                          gap: '8px',
+                          alignItems: 'center',
+                          padding: '6px 0',
+                          borderBottom: '1px solid rgba(255,255,255,0.03)'
+                        }}
+                      >
+                        {/* Turn Number */}
+                        <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)' }}>
+                          #{turn.turnNumber}
                         </div>
-                      ) : (
-                        <div style={{ visibility: 'hidden' }} />
-                      )}
 
-                      {/* Player 2 Move */}
-                      {turn.move2 ? (
-                        <div 
-                          onClick={() => setHistoryIndex(turn.move2!.originalIndex)}
-                          style={{
-                            padding: '8px 10px',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            background: historyIndex === turn.move2.originalIndex ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255,255,255,0.02)',
-                            border: historyIndex === turn.move2.originalIndex ? '1px solid var(--accent-purple)' : '1px solid rgba(255,255,255,0.05)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            transition: 'all 0.2s ease',
-                          }}
-                          className="history-item"
-                        >
-                          <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--accent-purple)' }}>
-                            {turn.move2.san || turn.move2.move}
-                          </span>
-                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            +{formatTime(turn.move2.thinkingTimeMs)} ({formatTime(turn.move2.cumulativeTimeMs)})
-                          </span>
-                        </div>
-                      ) : (
-                        game.status === 'playing' && isLive && game.currentTurn === 'player2' && turn.turnNumber === Math.ceil(game.history.length / 2) ? (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '34px' }}>
-                            <span className="pulse-dot" style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              backgroundColor: 'var(--accent-purple)',
-                              animation: 'pulse 1.5s infinite'
-                            }} />
+                        {/* Player 1 Move */}
+                        {turn.move1 ? (
+                          <div 
+                            onClick={() => setHistoryIndex(turn.move1!.originalIndex)}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              background: historyIndex === turn.move1.originalIndex ? p1ActiveBg : 'rgba(255,255,255,0.02)',
+                              border: historyIndex === turn.move1.originalIndex ? `1px solid ${p1Color}` : '1px solid rgba(255,255,255,0.05)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              transition: 'all 0.2s ease',
+                            }}
+                            className="history-item"
+                          >
+                            <span style={{ fontWeight: 800, fontSize: '0.85rem', color: p1Color }}>
+                              {turn.move1.san || turn.move1.move}
+                            </span>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              +{formatTime(turn.move1.thinkingTimeMs)} ({formatTime(turn.move1.cumulativeTimeMs)})
+                            </span>
                           </div>
                         ) : (
                           <div style={{ visibility: 'hidden' }} />
-                        )
-                      )}
-                    </div>
-                  ))}
+                        )}
+
+                        {/* Player 2 Move */}
+                        {turn.move2 ? (
+                          <div 
+                            onClick={() => setHistoryIndex(turn.move2!.originalIndex)}
+                            style={{
+                              padding: '8px 10px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              background: historyIndex === turn.move2.originalIndex ? p2ActiveBg : 'rgba(255,255,255,0.02)',
+                              border: historyIndex === turn.move2.originalIndex ? `1px solid ${p2Color}` : '1px solid rgba(255,255,255,0.05)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              transition: 'all 0.2s ease',
+                            }}
+                            className="history-item"
+                          >
+                            <span style={{ fontWeight: 800, fontSize: '0.85rem', color: p2Color }}>
+                              {turn.move2.san || turn.move2.move}
+                            </span>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              +{formatTime(turn.move2.thinkingTimeMs)} ({formatTime(turn.move2.cumulativeTimeMs)})
+                            </span>
+                          </div>
+                        ) : (
+                          game.status === 'playing' && isLive && game.currentTurn === 'player2' && turn.turnNumber === Math.ceil(game.history.length / 2) ? (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '34px' }}>
+                              <span className="pulse-dot" style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: p2Color,
+                                animation: 'pulse 1.5s infinite'
+                              }} />
+                            </div>
+                          ) : (
+                            <div style={{ visibility: 'hidden' }} />
+                          )
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             
             {/* Live stats footer */}
             {game.status === 'playing' && isLive && (

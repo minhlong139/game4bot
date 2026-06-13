@@ -71,7 +71,7 @@ export async function createGame(creator: string, type: GameType): Promise<strin
   await enforceGameLimit();
 
   const gameName = type === 'chess' ? 'Cờ Vua' : type === 'xiangqi' ? 'Cờ Tướng' : 'Cờ Caro';
-  await addActivity(`[Tạo game] Người chơi ${creator} đã tạo phòng chờ ${gameName}.`);
+  await addActivity(`[Tạo game] ${creator} tạo phòng chờ ${gameName}`);
 
   return gameId;
 }
@@ -145,7 +145,7 @@ export async function joinGame(gameId: string, player2: string): Promise<GameDat
   await kv.sadd('games:active', gameId);
 
   const gameName = game.type === 'chess' ? 'Cờ Vua' : game.type === 'xiangqi' ? 'Cờ Tướng' : 'Cờ Caro';
-  await addActivity(`[Chơi game] Người chơi ${player2} đã tham gia trận đấu ${gameName} cùng ${game.player1}.`);
+  await addActivity(`[Chơi game] ${player2} tham gia game ${gameName} với ${game.player1}`);
 
   await triggerWebhook(game);
 
@@ -305,13 +305,15 @@ export async function makeGameMove(gameId: string, username: string, moveStr: st
   const moveSan = engineResult.historyEntry?.san || moveStr;
   if (engineResult.isFinished) {
     if (engineResult.winner === 'draw') {
-      await addActivity(`[Kết thúc] Trận ${gameName} (${gameId.substring(0, 8)}) đã kết thúc với kết quả Hòa.`);
+      await addActivity(`[Kết thúc] ${game.player1} hòa ${game.player2} ở game ${gameName}`);
     } else {
       const winnerName = engineResult.winner === 'player1' ? game.player1 : game.player2;
-      await addActivity(`[Kết thúc] Trận ${gameName} (${gameId.substring(0, 8)}) đã kết thúc. Người thắng: ${winnerName}.`);
+      const loserName = winnerName === game.player1 ? game.player2 : game.player1;
+      await addActivity(`[Kết thúc] ${winnerName} vừa thắng ${loserName} ở game ${gameName}`);
     }
   } else {
-    await addActivity(`[Đi quân] Trận ${gameName} (${gameId.substring(0, 8)}): ${username} đi nước cờ ${moveSan}.`);
+    const opponentName = username === game.player1 ? game.player2 : game.player1;
+    await addActivity(`[Đi quân] ${username} vừa đi nước cờ ${moveSan} trong game ${gameName} với ${opponentName}`);
   }
 
   await triggerWebhook(game);
@@ -413,7 +415,7 @@ export async function cancelGame(gameId: string, username: string): Promise<bool
   await kv.del(`game:${gameId}`);
   await kv.srem('games:waiting', gameId);
 
-  await addActivity(`[Hủy phòng] Phòng chờ ${gameId.substring(0, 8)}... của ${username} đã bị hủy.`);
+  await addActivity(`[Hủy phòng] ${username} hủy phòng chờ game`);
 
   return true;
 }
@@ -455,7 +457,7 @@ export async function surrenderGame(gameId: string, username: string): Promise<b
 
   const gameName = game.type === 'chess' ? 'Cờ Vua' : game.type === 'xiangqi' ? 'Cờ Tướng' : 'Cờ Caro';
   const winnerName = winnerRole === 'player1' ? game.player1 : game.player2;
-  await addActivity(`[Đầu hàng] Trận ${gameName} (${gameId.substring(0, 8)}): ${username} đã đầu hàng. Người thắng: ${winnerName}.`);
+  await addActivity(`[Đầu hàng] ${username} đầu hàng, ${winnerName} thắng ở game ${gameName}`);
 
   await triggerWebhook(game);
 
@@ -552,7 +554,7 @@ export async function cleanStaleGame(gameId: string, status: GameStatus, updated
       }
       
       // Log activity
-      await addActivity(`[Dọn dẹp] Trận đấu ${gameId.substring(0, 8)}... đã tự động hủy do không có tương tác sau 15 phút.`);
+      await addActivity(`[Dọn dẹp] Hủy game treo ID ${gameId.substring(0, 8)}`);
       return true;
     }
     return false;

@@ -41,6 +41,39 @@ const ANIMALS = [
   { id: 'bear', name: 'Gấu Nâu', icon: '🐻', color: '#854d0e' },
 ];
 
+function formatPlayerName(username: string): string {
+  if (!username) return '';
+  if (username.startsWith('human_')) {
+    const parts = username.split('_');
+    if (parts.length >= 2) {
+      const animalId = parts[1];
+      const animal = ANIMALS.find(a => a.id === animalId);
+      if (animal) {
+        return `${animal.icon} ${animal.name}`;
+      }
+    }
+  }
+  const BOT_USERNAMES = [
+    'girl_xinh_dang_yeu_8x',
+    'boy_pho_co_ha_noi',
+    'kute_boy_9x',
+    'cong_chua_bong_bong_2000',
+    'hiep_si_mu_2000'
+  ];
+  if (BOT_USERNAMES.includes(username)) {
+    return `🤖 ${username}`;
+  }
+  return username;
+}
+
+function formatActivityText(text: string): string {
+  const pattern = /human_[a-zA-Z0-9_]+|girl_xinh_dang_yeu_8x|boy_pho_co_ha_noi|kute_boy_9x|cong_chua_bong_bong_2000|hiep_si_mu_2000/g;
+  return text.replace(pattern, (match) => {
+    return formatPlayerName(match);
+  });
+}
+
+
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
   const value = `; ${document.cookie}`;
@@ -70,10 +103,10 @@ const renderActivityItem = (activity: { message: string; timestamp: string }) =>
   const match = msg.match(/^\[(.*?)\] (.*)$/);
   
   let tag = 'Hoạt động';
-  let content = msg;
+  let content = formatActivityText(msg);
   if (match) {
     tag = match[1];
-    content = match[2];
+    content = formatActivityText(match[2]);
   }
   
   const style = getActivityStyle(msg);
