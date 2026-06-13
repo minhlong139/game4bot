@@ -311,6 +311,89 @@ export function isXiangqiMoveValid(
   return { valid: true };
 }
 
+export function isSquareAttacked(
+  board: string[][],
+  targetR: number,
+  targetC: number,
+  attackerIsRed: boolean
+): boolean {
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 9; c++) {
+      const piece = board[r][c];
+      if (piece === '') continue;
+      if (isPieceRed(piece) === attackerIsRed) {
+        // Can this piece move to (targetR, targetC)?
+        const res = isXiangqiMoveValid(board, r, c, targetR, targetC, attackerIsRed);
+        if (res.valid) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+export function isKingInCheck(board: string[][], isRed: boolean): boolean {
+  let kingR = -1;
+  let kingC = -1;
+  const kingChar = isRed ? 'K' : 'k';
+  for (let r = 0; r < 10; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (board[r][c] === kingChar) {
+        kingR = r;
+        kingC = c;
+        break;
+      }
+    }
+    if (kingR !== -1) break;
+  }
+
+  if (kingR === -1) return false;
+  return isSquareAttacked(board, kingR, kingC, !isRed);
+}
+
+export function isMoveLegal(
+  board: string[][],
+  fromR: number,
+  fromC: number,
+  toR: number,
+  toC: number,
+  isRed: boolean
+): boolean {
+  const val = isXiangqiMoveValid(board, fromR, fromC, toR, toC, isRed);
+  if (!val.valid) return false;
+
+  const tempBoard = board.map(row => [...row]);
+  tempBoard[toR][toC] = tempBoard[fromR][fromC];
+  tempBoard[fromR][fromC] = '';
+
+  if (isKingInCheck(tempBoard, isRed)) {
+    return false;
+  }
+
+  return true;
+}
+
+export function getLegalMoves(board: string[][], isRed: boolean): { fromR: number; fromC: number; toR: number; toC: number }[] {
+  const moves: { fromR: number; fromC: number; toR: number; toC: number }[] = [];
+  for (let fromR = 0; fromR < 10; fromR++) {
+    for (let fromC = 0; fromC < 9; fromC++) {
+      const piece = board[fromR][fromC];
+      if (piece === '' || isPieceRed(piece) !== isRed) continue;
+
+      for (let toR = 0; toR < 10; toR++) {
+        for (let toC = 0; toC < 9; toC++) {
+          if (fromR === toR && fromC === toC) continue;
+          if (isMoveLegal(board, fromR, fromC, toR, toC, isRed)) {
+            moves.push({ fromR, fromC, toR, toC });
+          }
+        }
+      }
+    }
+  }
+  return moves;
+}
+
 export function validateXiangqiMove(
   fen: string,
   moveStr: string,
@@ -355,6 +438,21 @@ export function validateXiangqiMove(
       };
     }
 
+    // Now check if it leaves own king in check
+    const tempBoard = board.map(row => [...row]);
+    tempBoard[toR][toC] = tempBoard[fromR][fromC];
+    tempBoard[fromR][fromC] = '';
+
+    if (isKingInCheck(tempBoard, turn === 'r')) {
+      return {
+        valid: false,
+        error: 'Move leaves your King in check (hoặc tướng bị chiếu/lộ tướng)',
+        boardState: fen,
+        isFinished: false,
+        winner: null,
+      };
+    }
+
     const boardBefore = fen;
 
     // Apply move
@@ -390,6 +488,16 @@ export function validateXiangqiMove(
     } else if (!hasBlackKing) {
       isFinished = true;
       winner = 'player1'; // Red wins
+    }
+
+    // Check if the next player has any legal moves (Checkmate or Stalemate)
+    if (!isFinished) {
+      const nextPlayerIsRed = nextTurn === 'r';
+      const nextLegalMoves = getLegalMoves(board, nextPlayerIsRed);
+      if (nextLegalMoves.length === 0) {
+        isFinished = true;
+        winner = playerColor; // The current player wins
+      }
     }
 
     return {

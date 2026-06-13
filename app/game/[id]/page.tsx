@@ -33,6 +33,75 @@ const CHESS_PIECE_SYMBOLS: Record<string, string> = {
   'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟'
 };
 
+const formatTime = (ms: number): string => {
+  if (ms < 1000) return `${ms}ms`;
+  const sec = ms / 1000;
+  if (sec < 60) return `${sec.toFixed(1)}s`;
+  const min = Math.floor(sec / 60);
+  const remainingSec = Math.floor(sec % 60);
+  return `${min}m ${remainingSec}s`;
+};
+
+interface TurnMove {
+  originalIndex: number;
+  move: string;
+  san: string;
+  thinkingTimeMs: number;
+  cumulativeTimeMs: number;
+}
+
+interface TurnEntry {
+  turnNumber: number;
+  move1?: TurnMove;
+  move2?: TurnMove;
+}
+
+const getHistoryTurns = (history: MoveHistoryEntry[], gameCreatedAt: string): TurnEntry[] => {
+  const turns: TurnEntry[] = [];
+  let p1Time = 0;
+  let p2Time = 0;
+
+  for (let i = 0; i < history.length; i++) {
+    const h = history[i];
+    const prevTime = i === 0 ? new Date(gameCreatedAt).getTime() : new Date(history[i - 1].timestamp).getTime();
+    const currTime = new Date(h.timestamp).getTime();
+    const thinkingTimeMs = Math.max(0, currTime - prevTime);
+
+    let cumulativeTimeMs = 0;
+    if (h.player === 'player1') {
+      p1Time += thinkingTimeMs;
+      cumulativeTimeMs = p1Time;
+    } else {
+      p2Time += thinkingTimeMs;
+      cumulativeTimeMs = p2Time;
+    }
+
+    const turnIndex = Math.floor(i / 2);
+    if (!turns[turnIndex]) {
+      turns[turnIndex] = {
+        turnNumber: turnIndex + 1,
+      };
+    }
+
+    const moveData: TurnMove = {
+      originalIndex: i,
+      move: h.move,
+      san: h.san,
+      thinkingTimeMs,
+      cumulativeTimeMs,
+    };
+
+    if (h.player === 'player1') {
+      turns[turnIndex].move1 = moveData;
+    } else {
+      turns[turnIndex].move2 = moveData;
+    }
+  }
+
+  return turns;
+};
+
+
 // Chinese characters for Xiangqi
 const XIANGQI_PIECE_LABELS: Record<string, string> = {
   'K': '帥', 'A': '仕', 'B': '相', 'N': '傌', 'R': '俥', 'C': '炮', 'P': '兵',
@@ -623,8 +692,8 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
           gridTemplateRows: 'repeat(9, minmax(0, 1fr))',
         }}>
           {/* Grid Cells (Vertical Lines) */}
-          {Array(8).fill(null).map((_, c) => 
-            Array(9).fill(null).map((_, r) => {
+          {Array(9).fill(null).map((_, r) => 
+            Array(8).fill(null).map((_, c) => {
               const isRiver = r === 4;
               const isEdge = c === 0 || c === 7;
               return (
@@ -1536,48 +1605,126 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                 Chưa có nước đi nào được thực hiện.
               </div>
             ) : (
-              <div style={{
-                flex: 1,
-                overflowY: 'auto',
-                maxHeight: '400px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                paddingRight: '5px'
-              }}>
-                {game.history.map((h, index) => ({ ...h, originalIndex: index })).reverse().map((h) => {
-                  const isCurrent = historyIndex === h.originalIndex;
-                  return (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                {/* Table Header */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '50px 1fr 1fr',
+                  gap: '8px',
+                  paddingBottom: '10px',
+                  borderBottom: '1px solid var(--border-color)',
+                  marginBottom: '10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--text-muted)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ textAlign: 'left' }}>Lượt</div>
+                  <div style={{ color: 'var(--accent-cyan)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {formatPlayerName(game.player1)}
+                  </div>
+                  <div style={{ color: 'var(--accent-purple)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {formatPlayerName(game.player2)}
+                  </div>
+                </div>
+
+                {/* Table Body */}
+                <div style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  maxHeight: '400px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  paddingRight: '5px'
+                }}>
+                  {getHistoryTurns(game.history, game.createdAt).reverse().map((turn) => (
                     <div 
-                      key={h.originalIndex}
-                      onClick={() => setHistoryIndex(h.originalIndex)}
+                      key={turn.turnNumber}
                       style={{
-                        padding: '10px 12px',
-                        borderRadius: '8px',
-                        background: isCurrent ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255,255,255,0.02)',
-                        border: isCurrent ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
-                        display: 'flex',
+                        display: 'grid',
+                        gridTemplateColumns: '50px 1fr 1fr',
+                        gap: '8px',
                         alignItems: 'center',
-                        justifyContent: 'space-between',
-                        cursor: 'pointer',
+                        padding: '6px 0',
+                        borderBottom: '1px solid rgba(255,255,255,0.03)'
                       }}
-                      className="history-item"
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)' }}>#{h.originalIndex + 1}</span>
-                        <span style={{
-                          fontWeight: 700,
-                          color: h.player === 'player1' ? 'var(--accent-cyan)' : 'var(--accent-purple)'
-                        }}>
-                          {formatPlayerName(h.player === 'player1' ? game.player1 : game.player2)}
-                        </span>
+                      {/* Turn Number */}
+                      <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)' }}>
+                        #{turn.turnNumber}
                       </div>
-                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#ffffff' }}>
-                        {h.san || h.move}
-                      </div>
+
+                      {/* Player 1 Move */}
+                      {turn.move1 ? (
+                        <div 
+                          onClick={() => setHistoryIndex(turn.move1!.originalIndex)}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            background: historyIndex === turn.move1.originalIndex ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255,255,255,0.02)',
+                            border: historyIndex === turn.move1.originalIndex ? '1px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.05)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            transition: 'all 0.2s ease',
+                          }}
+                          className="history-item"
+                        >
+                          <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--accent-cyan)' }}>
+                            {turn.move1.san || turn.move1.move}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            +{formatTime(turn.move1.thinkingTimeMs)} ({formatTime(turn.move1.cumulativeTimeMs)})
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ visibility: 'hidden' }} />
+                      )}
+
+                      {/* Player 2 Move */}
+                      {turn.move2 ? (
+                        <div 
+                          onClick={() => setHistoryIndex(turn.move2!.originalIndex)}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            background: historyIndex === turn.move2.originalIndex ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255,255,255,0.02)',
+                            border: historyIndex === turn.move2.originalIndex ? '1px solid var(--accent-purple)' : '1px solid rgba(255,255,255,0.05)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            transition: 'all 0.2s ease',
+                          }}
+                          className="history-item"
+                        >
+                          <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--accent-purple)' }}>
+                            {turn.move2.san || turn.move2.move}
+                          </span>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            +{formatTime(turn.move2.thinkingTimeMs)} ({formatTime(turn.move2.cumulativeTimeMs)})
+                          </span>
+                        </div>
+                      ) : (
+                        game.status === 'playing' && isLive && game.currentTurn === 'player2' && turn.turnNumber === Math.ceil(game.history.length / 2) ? (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '34px' }}>
+                            <span className="pulse-dot" style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: 'var(--accent-purple)',
+                              animation: 'pulse 1.5s infinite'
+                            }} />
+                          </div>
+                        ) : (
+                          <div style={{ visibility: 'hidden' }} />
+                        )
+                      )}
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
             )}
             

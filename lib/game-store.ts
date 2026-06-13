@@ -149,6 +149,11 @@ export async function joinGame(gameId: string, player2: string): Promise<GameDat
 
   await triggerWebhook(game);
 
+  // Trigger bot move if active
+  import('./bot-manager').then(m => m.triggerBotMoveIfActive(gameId)).catch(err => {
+    console.error('Error triggering bot move on join:', err);
+  });
+
   return game;
 }
 
@@ -179,7 +184,16 @@ export async function getWaitingGames(): Promise<Array<{ gameId: string; gameTyp
     }
   }
   // Sort by created time descending
-  return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const sorted = list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Trigger bot auto-join check in the background
+  if (sorted.length > 0) {
+    import('./bot-manager').then(m => m.checkAndAutoJoinWaitingGames(sorted)).catch(err => {
+      console.error('Error triggering bot auto-join:', err);
+    });
+  }
+
+  return sorted;
 }
 
 export async function getActiveGames(): Promise<GameData[]> {
@@ -301,6 +315,11 @@ export async function makeGameMove(gameId: string, username: string, moveStr: st
   }
 
   await triggerWebhook(game);
+
+  // Trigger bot move if active
+  import('./bot-manager').then(m => m.triggerBotMoveIfActive(gameId)).catch(err => {
+    console.error('Error triggering bot move:', err);
+  });
 
   return { success: true, game };
 }
