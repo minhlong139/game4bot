@@ -416,8 +416,8 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
     return (
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(8, 1fr)',
-        gridTemplateRows: 'repeat(8, 1fr)',
+        gridTemplateColumns: 'repeat(8, minmax(0, 1fr))',
+        gridTemplateRows: 'repeat(8, minmax(0, 1fr))',
         width: '100%',
         maxWidth: '520px',
         aspectRatio: '1',
@@ -450,7 +450,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '2.5rem',
+                  fontSize: 'min(7.5vw, 2.5rem)',
                   fontWeight: 'bold',
                   cursor: clickable ? 'pointer' : 'default',
                   position: 'relative',
@@ -544,7 +544,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
       <div style={{
         position: 'relative',
         display: 'grid',
-        gridTemplateRows: 'repeat(10, 1fr)',
+        gridTemplateRows: 'repeat(10, minmax(0, 1fr))',
         width: '100%',
         maxWidth: '520px',
         aspectRatio: '9 / 10',
@@ -564,8 +564,8 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
           pointerEvents: 'none',
           border: '1px solid rgba(255,255,255,0.15)',
           display: 'grid',
-          gridTemplateColumns: 'repeat(8, 1fr)',
-          gridTemplateRows: 'repeat(9, 1fr)',
+          gridTemplateColumns: 'repeat(8, minmax(0, 1fr))',
+          gridTemplateRows: 'repeat(9, minmax(0, 1fr))',
         }}>
           {/* Grid Cells (Vertical Lines) */}
           {Array(8).fill(null).map((_, c) => 
@@ -629,8 +629,8 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
           position: 'absolute',
           top: 0, bottom: 0, left: 0, right: 0,
           display: 'grid',
-          gridTemplateRows: 'repeat(10, 1fr)',
-          gridTemplateColumns: 'repeat(9, 1fr)',
+          gridTemplateRows: 'repeat(10, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(9, minmax(0, 1fr))',
           zIndex: 10
         }}>
           {grid.map((row, r) => 
@@ -723,7 +723,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
     return (
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(15, 1fr)',
+        gridTemplateColumns: 'repeat(15, minmax(0, 1fr))',
         width: '100%',
         maxWidth: '520px',
         aspectRatio: '1',
@@ -890,7 +890,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
       <div style={{ gap: '30px' }} className="game-grid">
         
         {/* Left Side: Game Board */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', width: '100%', minWidth: 0 }}>
           
           {/* Replay Notice banner */}
           {!isLive && (
@@ -1257,7 +1257,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
         </div>
 
         {/* Right Side: Sidebar - Rules & History */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', width: '100%', minWidth: 0 }}>
           
           {/* Rules Details */}
           <div className="glass" style={{ padding: '20px' }}>
