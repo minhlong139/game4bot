@@ -47,6 +47,7 @@ export interface KVStore {
   smembers(key: string): Promise<string[]>;
   lpush(key: string, ...elements: any[]): Promise<number>;
   lrange<T>(key: string, start: number, stop: number): Promise<T[]>;
+  ltrim(key: string, start: number, stop: number): Promise<'OK' | null>;
 }
 
 const isProdRedis = !!process.env.REDIS_URL;
@@ -133,6 +134,11 @@ export const kv: KVStore = isProdRedis
             return val as unknown as T;
           }
         });
+      },
+      async ltrim(key: string, start: number, stop: number): Promise<'OK' | null> {
+        const client = await getRedisClient();
+        await client.lTrim(key, start, stop);
+        return 'OK';
       },
     }
   : {
@@ -240,5 +246,24 @@ export const kv: KVStore = isProdRedis
         actualStop = Math.min(len - 1, actualStop);
         if (actualStart > actualStop) return [];
         return list.slice(actualStart, actualStop + 1);
+      },
+      async ltrim(key: string, start: number, stop: number): Promise<'OK' | null> {
+        const store = readMockStore();
+        if (!Array.isArray(store[key])) {
+          return 'OK';
+        }
+        const list = store[key];
+        const len = list.length;
+        let actualStart = start < 0 ? len + start : start;
+        let actualStop = stop < 0 ? len + stop : stop;
+        actualStart = Math.max(0, actualStart);
+        actualStop = Math.min(len - 1, actualStop);
+        if (actualStart > actualStop) {
+          store[key] = [];
+        } else {
+          store[key] = list.slice(actualStart, actualStop + 1);
+        }
+        writeMockStore(store);
+        return 'OK';
       },
     };

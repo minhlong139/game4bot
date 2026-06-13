@@ -500,11 +500,7 @@ export async function addActivity(message: string): Promise<void> {
     };
     await kv.lpush('system:activities', activity);
     // Trim to 50 activities to save space
-    const list = await kv.lrange<ActivityLog>('system:activities', 0, 99);
-    if (list.length > 50) {
-      await kv.del('system:activities');
-      await kv.lpush('system:activities', ...[...list.slice(0, 50)].reverse());
-    }
+    await kv.ltrim('system:activities', 0, 49);
   } catch (err) {
     console.error('Failed to add activity:', err);
   }

@@ -65,7 +65,7 @@ const getActivityStyle = (msg: string) => {
   return { color: 'var(--text-primary)', badgeBg: 'rgba(255, 255, 255, 0.05)' };
 };
 
-const renderActivityItem = (activity: { message: string; timestamp: string }, index: number) => {
+const renderActivityItem = (activity: { message: string; timestamp: string }) => {
   const msg = activity.message;
   const match = msg.match(/^\[(.*?)\] (.*)$/);
   
@@ -84,7 +84,7 @@ const renderActivityItem = (activity: { message: string; timestamp: string }, in
   });
 
   return (
-    <div key={index} className="activity-item" style={{
+    <div key={activity.timestamp + '-' + activity.message} className="activity-item" style={{
       display: 'flex',
       flexDirection: 'column',
       gap: '4px',
@@ -864,7 +864,7 @@ Response thất bại: { "status": "error", "message": "Nước đi không hợp
                 scrollbarWidth: 'thin',
                 scrollbarColor: 'rgba(255,255,255,0.1) transparent'
               }}>
-                {data.activities.map((act, index) => renderActivityItem(act, index))}
+                {data.activities.map((act) => renderActivityItem(act))}
               </div>
             )}
           </div>
