@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { kv } from '@/lib/kv';
 import { hashPassword, generateToken } from '@/lib/crypto';
 import cryptoModule from 'crypto';
+import { addActivity } from '@/lib/game-store';
 
 const ANIMALS = [
   { id: 'pig', name: 'Lợn Hồng', icon: '🐷', color: '#ec4899' },
@@ -53,6 +54,8 @@ export async function POST(req: Request) {
     await kv.sadd('users:all', username);
 
     const userData = { username, displayName, token, avatarColor };
+
+    await addActivity(`[Đăng ký] Người chơi ${displayName} (${username}) đã tham gia.`);
 
     const response = NextResponse.json({ status: 'success', user: userData });
 

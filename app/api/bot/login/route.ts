@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { kv } from '@/lib/kv';
 import { verifyPassword } from '@/lib/crypto';
+import { addActivity } from '@/lib/game-store';
 
 export async function POST(req: Request) {
   try {
@@ -32,6 +33,8 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
+
+    await addActivity(`[Đăng nhập] Bot ${trimmedUsername} đã kết nối.`);
 
     return NextResponse.json({
       status: 'success',

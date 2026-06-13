@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getWaitingGames, getActiveGames, getCompletedGames, getLeaderboard } from '@/lib/game-store';
+import { getWaitingGames, getActiveGames, getCompletedGames, getLeaderboard, getRecentActivities } from '@/lib/game-store';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const [waitingGames, activeGames, completedGames, leaderboard] = await Promise.all([
+    const [waitingGames, activeGames, completedGames, leaderboard, activities] = await Promise.all([
       getWaitingGames(),
       getActiveGames(),
       getCompletedGames(50), // Fetch up to 50 for load more capability
-      getLeaderboard()
+      getLeaderboard(),
+      getRecentActivities()
     ]);
 
     return NextResponse.json({
@@ -40,7 +41,8 @@ export async function GET() {
         movesCount: g.history.length,
         completedAt: g.updatedAt
       })),
-      leaderboard
+      leaderboard,
+      activities
     });
   } catch (error) {
     console.error('Error fetching dashboard data:', error);

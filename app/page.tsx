@@ -49,17 +49,87 @@ function getCookie(name: string): string | null {
   return null;
 }
 
+const getActivityStyle = (msg: string) => {
+  if (msg.includes('[Kết thúc]') || msg.includes('[Đầu hàng]')) {
+    return { color: 'var(--accent-green)', badgeBg: 'rgba(16, 185, 129, 0.1)' };
+  }
+  if (msg.includes('[Tạo game]') || msg.includes('[Chơi game]') || msg.includes('[Đi quân]')) {
+    return { color: 'var(--accent-cyan)', badgeBg: 'rgba(6, 182, 212, 0.1)' };
+  }
+  if (msg.includes('[Đăng ký]') || msg.includes('[Đăng nhập]')) {
+    return { color: 'var(--accent-yellow)', badgeBg: 'rgba(234, 179, 8, 0.1)' };
+  }
+  if (msg.includes('[Hủy phòng]') || msg.includes('[Dọn dẹp]')) {
+    return { color: '#f97316', badgeBg: 'rgba(249, 115, 22, 0.1)' };
+  }
+  return { color: 'var(--text-primary)', badgeBg: 'rgba(255, 255, 255, 0.05)' };
+};
+
+const renderActivityItem = (activity: { message: string; timestamp: string }, index: number) => {
+  const msg = activity.message;
+  const match = msg.match(/^\[(.*?)\] (.*)$/);
+  
+  let tag = 'Hoạt động';
+  let content = msg;
+  if (match) {
+    tag = match[1];
+    content = match[2];
+  }
+  
+  const style = getActivityStyle(msg);
+  const timeStr = new Date(activity.timestamp).toLocaleTimeString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+
+  return (
+    <div key={index} className="activity-item" style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '4px',
+      padding: '10px 12px',
+      borderRadius: '8px',
+      borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
+      fontSize: '0.85rem'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+        <span style={{
+          fontSize: '0.75rem',
+          fontWeight: 800,
+          padding: '2px 6px',
+          borderRadius: '4px',
+          backgroundColor: style.badgeBg,
+          color: style.color,
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em'
+        }}>
+          {tag}
+        </span>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          {timeStr}
+        </span>
+      </div>
+      <div style={{ color: 'var(--text-secondary)', lineHeight: '1.4', wordBreak: 'break-word' }}>
+        {content}
+      </div>
+    </div>
+  );
+};
+
 export default function DashboardPage() {
   const [data, setData] = useState<{
     waitingGames: any[];
     activeGames: any[];
     completedGames: any[];
     leaderboard: LeaderboardEntry[];
+    activities: any[];
   }>({
     waitingGames: [],
     activeGames: [],
     completedGames: [],
     leaderboard: [],
+    activities: [],
   });
 
   const [loading, setLoading] = useState(true);
@@ -104,6 +174,7 @@ export default function DashboardPage() {
             activeGames: json.activeGames || [],
             completedGames: json.completedGames || [],
             leaderboard: json.leaderboard || [],
+            activities: json.activities || [],
           });
         }
       }
@@ -767,57 +838,90 @@ Response thất bại: { "status": "error", "message": "Nước đi không hợp
           </section>
         </div>
 
-        {/* Sidebar - Leaderboard */}
-        <div id="leaderboard">
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px' }}>Bảng Xếp Hạng Bot</h2>
+        {/* Sidebar - Activity & Leaderboard */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
           
-          {loading && data.leaderboard.length === 0 ? (
-            <div className="glass flex-center" style={{ height: '300px', color: 'var(--text-muted)' }}>
-              Đang tải bảng xếp hạng...
-            </div>
-          ) : data.leaderboard.length === 0 ? (
-            <div className="glass flex-center" style={{ height: '200px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>
-              Chưa có Bot nào trong bảng xếp hạng. Hãy đăng ký tài khoản cho Bot!
-            </div>
-          ) : (
-            <div className="glass" style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {data.leaderboard.map((bot, index) => {
-                const getRankBadge = (idx: number) => {
-                  if (idx === 0) return '🥇';
-                  if (idx === 1) return '🥈';
-                  if (idx === 2) return '🥉';
-                  return `#${idx + 1}`;
-                };
+          {/* Module Hoạt động */}
+          <div id="activities">
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px' }}>Hoạt Động Hệ Thống</h2>
+            
+            {loading && data.activities.length === 0 ? (
+              <div className="glass flex-center" style={{ height: '200px', color: 'var(--text-muted)' }}>
+                Đang tải hoạt động...
+              </div>
+            ) : data.activities.length === 0 ? (
+              <div className="glass flex-center" style={{ height: '150px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>
+                Chưa có hoạt động nào được ghi nhận.
+              </div>
+            ) : (
+              <div className="glass" style={{
+                maxHeight: '350px',
+                overflowY: 'auto',
+                padding: '10px 5px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(255,255,255,0.1) transparent'
+              }}>
+                {data.activities.map((act, index) => renderActivityItem(act, index))}
+              </div>
+            )}
+          </div>
 
-                return (
-                  <div key={bot.username} className="flex-between" style={{
-                    padding: '12px 15px',
-                    borderRadius: '10px',
-                    background: index < 3 ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
-                    border: index < 3 ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid transparent',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontWeight: 800, fontSize: index < 3 ? '1.1rem' : '0.85rem' }}>
-                        {getRankBadge(index)}
-                      </span>
-                      <span style={{ fontWeight: 700, color: index === 0 ? 'var(--accent-yellow)' : 'var(--text-primary)' }}>
-                        {bot.username}
-                      </span>
-                    </div>
-                    
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontWeight: 800, color: 'var(--accent-cyan)', fontSize: '1.05rem' }}>
-                        {bot.score} pts
+          {/* Sidebar - Leaderboard */}
+          <div id="leaderboard">
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px' }}>Bảng Xếp Hạng Bot</h2>
+            
+            {loading && data.leaderboard.length === 0 ? (
+              <div className="glass flex-center" style={{ height: '300px', color: 'var(--text-muted)' }}>
+                Đang tải bảng xếp hạng...
+              </div>
+            ) : data.leaderboard.length === 0 ? (
+              <div className="glass flex-center" style={{ height: '200px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>
+                Chưa có Bot nào trong bảng xếp hạng. Hãy đăng ký tài khoản cho Bot!
+              </div>
+            ) : (
+              <div className="glass" style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {data.leaderboard.map((bot, index) => {
+                  const getRankBadge = (idx: number) => {
+                    if (idx === 0) return '🥇';
+                    if (idx === 1) return '🥈';
+                    if (idx === 2) return '🥉';
+                    return `#${idx + 1}`;
+                  };
+
+                  return (
+                    <div key={bot.username} className="flex-between" style={{
+                      padding: '12px 15px',
+                      borderRadius: '10px',
+                      background: index < 3 ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
+                      border: index < 3 ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid transparent',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontWeight: 800, fontSize: index < 3 ? '1.1rem' : '0.85rem' }}>
+                          {getRankBadge(index)}
+                        </span>
+                        <span style={{ fontWeight: 700, color: index === 0 ? 'var(--accent-yellow)' : 'var(--text-primary)' }}>
+                          {bot.username}
+                        </span>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {bot.wins}W - {bot.draws}D - {bot.losses}L
+                      
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 800, color: 'var(--accent-cyan)', fontSize: '1.05rem' }}>
+                          {bot.score} pts
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {bot.wins}W - {bot.draws}D - {bot.losses}L
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
         </div>
       </div>
 

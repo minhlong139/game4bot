@@ -1285,12 +1285,12 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                 gap: '8px',
                 paddingRight: '5px'
               }}>
-                {game.history.map((h, index) => {
-                  const isCurrent = historyIndex === index;
+                {game.history.map((h, index) => ({ ...h, originalIndex: index })).reverse().map((h) => {
+                  const isCurrent = historyIndex === h.originalIndex;
                   return (
                     <div 
-                      key={index}
-                      onClick={() => setHistoryIndex(index)}
+                      key={h.originalIndex}
+                      onClick={() => setHistoryIndex(h.originalIndex)}
                       style={{
                         padding: '10px 12px',
                         borderRadius: '8px',
@@ -1304,7 +1304,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                       className="history-item"
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)' }}>#{index + 1}</span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)' }}>#{h.originalIndex + 1}</span>
                         <span style={{
                           fontWeight: 700,
                           color: h.player === 'player1' ? 'var(--accent-cyan)' : 'var(--accent-purple)'

@@ -70,6 +70,9 @@ export async function createGame(creator: string, type: GameType): Promise<strin
   // Enforce total game limit of 100
   await enforceGameLimit();
 
+  const gameName = type === 'chess' ? 'Cờ Vua' : type === 'xiangqi' ? 'Cờ Tướng' : 'Cờ Caro';
+  await addActivity(`[Tạo game] Người chơi ${creator} đã tạo phòng chờ ${gameName}.`);
+
   return gameId;
 }
 
@@ -141,6 +144,9 @@ export async function joinGame(gameId: string, player2: string): Promise<GameDat
   await kv.srem('games:waiting', gameId);
   await kv.sadd('games:active', gameId);
 
+  const gameName = game.type === 'chess' ? 'Cờ Vua' : game.type === 'xiangqi' ? 'Cờ Tướng' : 'Cờ Caro';
+  await addActivity(`[Chơi game] Người chơi ${player2} đã tham gia trận đấu ${gameName} cùng ${game.player1}.`);
+
   await triggerWebhook(game);
 
   return game;
@@ -152,16 +158,24 @@ export async function getGame(gameId: string): Promise<GameData | null> {
 
 export async function getWaitingGames(): Promise<Array<{ gameId: string; gameType: GameType; createdBy: string; createdAt: string }>> {
   const gameIds = await kv.smembers('games:waiting');
+  const games = await Promise.all(gameIds.map(id => kv.get<GameData>(`game:${id}`)));
   const list = [];
-  for (const id of gameIds) {
-    const game = await kv.get<GameData>(`game:${id}`);
-    if (game && game.status === 'waiting') {
-      list.push({
-        gameId: game.id,
-        gameType: game.type,
-        createdBy: game.player1,
-        createdAt: game.createdAt
-      });
+  
+  for (let i = 0; i < gameIds.length; i++) {
+    const id = gameIds[i];
+    const game = games[i];
+    if (game) {
+      const isCleaned = await cleanStaleGame(id, 'waiting', game.updatedAt || game.createdAt);
+      if (!isCleaned && game.status === 'waiting') {
+        list.push({
+          gameId: game.id,
+          gameType: game.type,
+          createdBy: game.player1,
+          createdAt: game.createdAt
+        });
+      }
+    } else {
+      await kv.srem('games:waiting', id);
     }
   }
   // Sort by created time descending
@@ -170,11 +184,19 @@ export async function getWaitingGames(): Promise<Array<{ gameId: string; gameTyp
 
 export async function getActiveGames(): Promise<GameData[]> {
   const gameIds = await kv.smembers('games:active');
+  const games = await Promise.all(gameIds.map(id => kv.get<GameData>(`game:${id}`)));
   const list = [];
-  for (const id of gameIds) {
-    const game = await kv.get<GameData>(`game:${id}`);
-    if (game && game.status === 'playing') {
-      list.push(game);
+  
+  for (let i = 0; i < gameIds.length; i++) {
+    const id = gameIds[i];
+    const game = games[i];
+    if (game) {
+      const isCleaned = await cleanStaleGame(id, 'playing', game.updatedAt);
+      if (!isCleaned && game.status === 'playing') {
+        list.push(game);
+      }
+    } else {
+      await kv.srem('games:active', id);
     }
   }
   return list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
@@ -183,9 +205,11 @@ export async function getActiveGames(): Promise<GameData[]> {
 export async function getCompletedGames(limit = 20): Promise<GameData[]> {
   // Retrieve completed game IDs from list
   const gameIds = await kv.lrange<string>('games:history', 0, limit - 1);
+  const games = await Promise.all(gameIds.map(id => kv.get<GameData>(`game:${id}`)));
   const list = [];
-  for (const id of gameIds) {
-    const game = await kv.get<GameData>(`game:${id}`);
+  
+  for (let i = 0; i < gameIds.length; i++) {
+    const game = games[i];
     if (game) {
       list.push(game);
     }
@@ -263,6 +287,19 @@ export async function makeGameMove(gameId: string, username: string, moveStr: st
   game.updatedAt = new Date().toISOString();
   await kv.set(`game:${gameId}`, game);
 
+  const gameName = game.type === 'chess' ? 'Cờ Vua' : game.type === 'xiangqi' ? 'Cờ Tướng' : 'Cờ Caro';
+  const moveSan = engineResult.historyEntry?.san || moveStr;
+  if (engineResult.isFinished) {
+    if (engineResult.winner === 'draw') {
+      await addActivity(`[Kết thúc] Trận ${gameName} (${gameId.substring(0, 8)}) đã kết thúc với kết quả Hòa.`);
+    } else {
+      const winnerName = engineResult.winner === 'player1' ? game.player1 : game.player2;
+      await addActivity(`[Kết thúc] Trận ${gameName} (${gameId.substring(0, 8)}) đã kết thúc. Người thắng: ${winnerName}.`);
+    }
+  } else {
+    await addActivity(`[Đi quân] Trận ${gameName} (${gameId.substring(0, 8)}): ${username} đi nước cờ ${moveSan}.`);
+  }
+
   await triggerWebhook(game);
 
   return { success: true, game };
@@ -319,20 +356,12 @@ export interface LeaderboardEntry {
 
 export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
   try {
-    // Ideally we would index all users, but since Redis has scan/keys:
-    // With Vercel KV, let's keep a leaderboard or scan for users.
-    // Since this is a lightweight app, let's keep a set of all registered user names, or search KV keys.
-    // For local mock / Redis, we can read the full mock store, or scan.
-    // Let's implement user tracking by adding users to a set `users:all` on registration!
-    // Wait, let's check if we added to a set. In our registration route, we didn't add it yet.
-    // Let's modify the registration api route or just add a set addition helper here.
-    // Let's write a wrapper. But wait, since we haven't registered anyone yet, we can update the registration api route
-    // to add usernames to `users:all` so we can easily query them for the leaderboard!
-    // Let's implement this set: `users:all`.
     const usernames = await kv.smembers('users:all');
+    const userProfiles = await Promise.all(usernames.map(name => kv.hgetall<any>(`user:${name}`)));
     const board: LeaderboardEntry[] = [];
-    for (const name of usernames) {
-      const u = await kv.hgetall<any>(`user:${name}`);
+    for (let i = 0; i < usernames.length; i++) {
+      const name = usernames[i];
+      const u = userProfiles[i];
       if (u) {
         const wins = parseInt(u.wins || '0', 10);
         const draws = parseInt(u.draws || '0', 10);
@@ -346,7 +375,10 @@ export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
         });
       }
     }
-    return board.sort((a, b) => b.score - a.score || b.wins - a.wins);
+    // Limit to top 10 bots
+    return board
+      .sort((a, b) => b.score - a.score || b.wins - a.wins)
+      .slice(0, 10);
   } catch (err) {
     console.error('Failed to load leaderboard:', err);
     return [];
@@ -361,6 +393,8 @@ export async function cancelGame(gameId: string, username: string): Promise<bool
 
   await kv.del(`game:${gameId}`);
   await kv.srem('games:waiting', gameId);
+
+  await addActivity(`[Hủy phòng] Phòng chờ ${gameId.substring(0, 8)}... của ${username} đã bị hủy.`);
 
   return true;
 }
@@ -399,6 +433,10 @@ export async function surrenderGame(gameId: string, username: string): Promise<b
 
   // Update stats
   await updatePlayerStats(game.player1, game.player2, winnerRole);
+
+  const gameName = game.type === 'chess' ? 'Cờ Vua' : game.type === 'xiangqi' ? 'Cờ Tướng' : 'Cờ Caro';
+  const winnerName = winnerRole === 'player1' ? game.player1 : game.player2;
+  await addActivity(`[Đầu hàng] Trận ${gameName} (${gameId.substring(0, 8)}): ${username} đã đầu hàng. Người thắng: ${winnerName}.`);
 
   await triggerWebhook(game);
 
@@ -446,5 +484,65 @@ async function triggerWebhook(game: GameData) {
     }
   } catch (err) {
     console.error('Error in triggerWebhook:', err);
+  }
+}
+
+export interface ActivityLog {
+  message: string;
+  timestamp: string;
+}
+
+export async function addActivity(message: string): Promise<void> {
+  try {
+    const activity: ActivityLog = {
+      message,
+      timestamp: new Date().toISOString()
+    };
+    await kv.lpush('system:activities', activity);
+    // Trim to 50 activities to save space
+    const list = await kv.lrange<ActivityLog>('system:activities', 0, 99);
+    if (list.length > 50) {
+      await kv.del('system:activities');
+      await kv.lpush('system:activities', ...[...list.slice(0, 50)].reverse());
+    }
+  } catch (err) {
+    console.error('Failed to add activity:', err);
+  }
+}
+
+export async function getRecentActivities(): Promise<ActivityLog[]> {
+  try {
+    return await kv.lrange<ActivityLog>('system:activities', 0, 49);
+  } catch (err) {
+    console.error('Failed to get recent activities:', err);
+    return [];
+  }
+}
+
+export async function cleanStaleGame(gameId: string, status: GameStatus, updatedAtStr: string): Promise<boolean> {
+  try {
+    const updatedAt = new Date(updatedAtStr || 0).getTime();
+    const now = new Date().getTime();
+    const isStale = (now - updatedAt) > 15 * 60 * 1000; // 15 minutes
+
+    if (isStale) {
+      console.log(`Cleaning up stale game ${gameId} with status ${status}`);
+      // 1. Delete actual game details
+      await kv.del(`game:${gameId}`);
+      // 2. Remove from sets
+      if (status === 'waiting') {
+        await kv.srem('games:waiting', gameId);
+      } else if (status === 'playing') {
+        await kv.srem('games:active', gameId);
+      }
+      
+      // Log activity
+      await addActivity(`[Dọn dẹp] Trận đấu ${gameId.substring(0, 8)}... đã tự động hủy do không có tương tác sau 15 phút.`);
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error(`Failed to clean stale game ${gameId}:`, err);
+    return false;
   }
 }

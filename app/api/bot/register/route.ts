@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { kv } from '@/lib/kv';
 import { hashPassword, generateToken } from '@/lib/crypto';
+import { addActivity } from '@/lib/game-store';
 
 export async function POST(req: Request) {
   try {
@@ -63,6 +64,8 @@ export async function POST(req: Request) {
 
     await kv.set(`token:${token}`, trimmedUsername);
     await kv.sadd('users:all', trimmedUsername);
+
+    await addActivity(`[Đăng ký] Bot ${trimmedUsername} đã gia nhập hệ thống.`);
 
     return NextResponse.json({ status: 'success', token });
   } catch (error) {
