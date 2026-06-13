@@ -380,6 +380,27 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
     const loserRole = game?.winner === 'player1' ? 'player2' : game?.winner === 'player2' ? 'player1' : null;
     const targetKingChar = loserRole === 'player1' ? 'K' : loserRole === 'player2' ? 'k' : null;
 
+    const activeMove = historyIndex === -1 
+      ? (game?.history && game.history.length > 0 ? game.history[game.history.length - 1] : null)
+      : game?.history[historyIndex];
+
+    let lastMoveSrc: { r: number, c: number } | null = null;
+    let lastMoveDst: { r: number, c: number } | null = null;
+
+    if (activeMove && activeMove.move && activeMove.move.length >= 4 && activeMove.move !== 'surrender') {
+      const srcCol = activeMove.move.charCodeAt(0) - 97;
+      const srcRow = 8 - parseInt(activeMove.move[1], 10);
+      const dstCol = activeMove.move.charCodeAt(2) - 97;
+      const dstRow = 8 - parseInt(activeMove.move[3], 10);
+
+      if (srcCol >= 0 && srcCol < 8 && srcRow >= 0 && srcRow < 8) {
+        lastMoveSrc = { r: srcRow, c: srcCol };
+      }
+      if (dstCol >= 0 && dstCol < 8 && dstRow >= 0 && dstRow < 8) {
+        lastMoveDst = { r: dstRow, c: dstCol };
+      }
+    }
+
     const handleChessSquareClick = async (r: number, c: number, piece: string) => {
       if (!isMyTurn || !humanUser || !game || makingMove) return;
       const squareName = String.fromCharCode(97 + c) + (8 - r); // e.g. "e2"
@@ -439,6 +460,9 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
 
             const isDefeatedKing = isFinished && targetKingChar && piece === targetKingChar;
 
+            const isSrc = lastMoveSrc && lastMoveSrc.r === r && lastMoveSrc.c === c;
+            const isDst = lastMoveDst && lastMoveDst.r === r && lastMoveDst.c === c;
+
             return (
               <div 
                 key={`${r}-${c}`} 
@@ -458,8 +482,18 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                     ? 'inset 0 0 20px #ef4444, 0 0 15px #ef4444' 
                     : isSelected 
                       ? 'inset 0 0 12px var(--accent-cyan)' 
-                      : 'none',
-                  animation: isDefeatedKing ? 'pulse 0.8s infinite alternate' : 'none',
+                      : isDst
+                        ? 'inset 0 0 16px rgba(6, 182, 212, 0.7), 0 0 10px rgba(6, 182, 212, 0.4)'
+                        : isSrc
+                          ? 'inset 0 0 16px rgba(234, 179, 8, 0.4)'
+                          : 'none',
+                  animation: isDefeatedKing 
+                    ? 'pulse 0.8s infinite alternate' 
+                    : isDst 
+                      ? 'pulse-glow-last 1s infinite alternate' 
+                      : isSrc
+                        ? 'pulse-glow-src 1.5s infinite alternate'
+                        : 'none',
                   width: '100%',
                   height: '100%'
                 }}
@@ -505,6 +539,27 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
     const isFinished = game?.status === 'finished';
     const loserRole = game?.winner === 'player1' ? 'player2' : game?.winner === 'player2' ? 'player1' : null;
     const targetKingChar = loserRole === 'player1' ? 'K' : loserRole === 'player2' ? 'k' : null;
+
+    const activeMove = historyIndex === -1 
+      ? (game?.history && game.history.length > 0 ? game.history[game.history.length - 1] : null)
+      : game?.history[historyIndex];
+
+    let lastMoveSrc: { r: number, c: number } | null = null;
+    let lastMoveDst: { r: number, c: number } | null = null;
+
+    if (activeMove && activeMove.move && activeMove.move.length >= 4 && activeMove.move !== 'surrender') {
+      const srcCol = activeMove.move.charCodeAt(0) - 97;
+      const srcRow = parseInt(activeMove.move[1], 10);
+      const dstCol = activeMove.move.charCodeAt(2) - 97;
+      const dstRow = parseInt(activeMove.move[3], 10);
+
+      if (srcCol >= 0 && srcCol < 9 && srcRow >= 0 && srcRow < 10) {
+        lastMoveSrc = { r: srcRow, c: srcCol };
+      }
+      if (dstCol >= 0 && dstCol < 9 && dstRow >= 0 && dstRow < 10) {
+        lastMoveDst = { r: dstRow, c: dstCol };
+      }
+    }
 
     for (let r = 0; r < 10; r++) {
       const rowStr = rows[r];
@@ -642,6 +697,9 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
               const clickable = isMyTurn && (isMyPiece || selectedSquare !== null);
               const isDefeatedKing = isFinished && targetKingChar && piece === targetKingChar;
 
+              const isSrc = lastMoveSrc && lastMoveSrc.r === r && lastMoveSrc.c === c;
+              const isDst = lastMoveDst && lastMoveDst.r === r && lastMoveDst.c === c;
+
               return (
                 <div 
                   key={`cell-${r}-${c}`} 
@@ -650,7 +708,16 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    cursor: clickable ? 'pointer' : 'default'
+                    cursor: clickable ? 'pointer' : 'default',
+                    boxShadow: isSelected
+                      ? 'inset 0 0 10px var(--accent-cyan)'
+                      : isDst
+                        ? 'inset 0 0 12px rgba(6, 182, 212, 0.7)'
+                        : isSrc
+                          ? 'inset 0 0 12px rgba(234, 179, 8, 0.45)'
+                          : 'none',
+                    animation: isDst ? 'pulse-glow-last 1s infinite alternate' : isSrc ? 'pulse-glow-src 1s infinite alternate' : 'none',
+                    borderRadius: '4px'
                   }}
                 >
                   {piece && (
@@ -806,6 +873,195 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
     );
   };
 
+  const renderPlayerBar = (playerRole: 'player1' | 'player2') => {
+    const isP1 = playerRole === 'player1';
+    const username = isP1 ? game.player1 : game.player2;
+    const isMyPiece = (isP1 && isPlayer1) || (!isP1 && isPlayer2);
+
+    // If waiting and player2 is not joined yet
+    if (game.status === 'waiting' && !isP1 && !username) {
+      return (
+        <div style={{
+          width: '100%',
+          maxWidth: '520px',
+          padding: '10px 15px',
+          borderRadius: '8px',
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px dashed var(--border-color)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          color: 'var(--text-muted)',
+          fontSize: '0.85rem',
+          fontStyle: 'italic',
+          marginBottom: '10px'
+        }}>
+          <span>PLAYER 2 (Quân Đen / Đi Sau)</span>
+          <span>⏳ Đang chờ đối thủ tham gia...</span>
+        </div>
+      );
+    }
+
+    // Determine piece label / color
+    let sideLabel = '';
+    let sideColor = '';
+    let badgeColor = '';
+    if (game.type === 'chess') {
+      sideLabel = isP1 ? '⚪ Trắng' : '⚫ Đen';
+      sideColor = isP1 ? '#ffffff' : '#c084fc'; // Purple for Black pieces
+      badgeColor = isP1 ? 'rgba(255, 255, 255, 0.1)' : 'rgba(168, 85, 247, 0.15)';
+    } else if (game.type === 'xiangqi') {
+      sideLabel = isP1 ? '🔴 Đỏ' : '🔵 Đen';
+      sideColor = isP1 ? '#f87171' : '#38bdf8'; // Blue/Cyan for Black pieces
+      badgeColor = isP1 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 189, 248, 0.15)';
+    }
+
+    // Turn status
+    const isTurn = game.status === 'playing' && game.currentTurn === playerRole;
+    
+    // Winner/Loser status
+    const isFinished = game.status === 'finished';
+    const isWinner = isFinished && game.winner === playerRole;
+    const isLoser = isFinished && game.winner !== null && game.winner !== 'draw' && game.winner !== playerRole;
+    const isDraw = isFinished && game.winner === 'draw';
+
+    return (
+      <div className="glass" style={{
+        width: '100%',
+        maxWidth: '520px',
+        padding: '12px 16px',
+        borderRadius: '8px',
+        borderLeft: isTurn ? `4px solid ${sideColor}` : '1px solid var(--border-color)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        margin: isP1 ? '10px 0 0 0' : '0 0 10px 0',
+        boxShadow: isTurn ? `0 0 15px rgba(255, 255, 255, 0.05), inset 0 0 8px ${badgeColor}` : 'none',
+        transition: 'all 0.3s ease'
+      }}>
+        {/* Left side: Username & Side Label */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{
+            fontSize: '1.25rem',
+            filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.15))'
+          }}>
+            {isP1 ? '🤖' : '👾'}
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ 
+              fontWeight: 800, 
+              color: sideColor, 
+              fontSize: '1.05rem',
+              letterSpacing: '0.02em',
+              textShadow: `0 0 8px ${sideColor}33`
+            }}>
+              {formatPlayerName(username)} {isMyPiece && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400 }}>(Bạn)</span>}
+            </span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              {isP1 ? 'PLAYER 1' : 'PLAYER 2'} • {sideLabel}
+            </span>
+          </div>
+        </div>
+
+        {/* Right side: Status Badge */}
+        <div>
+          {isTurn && (
+            <span className="pulse-opacity" style={{
+              backgroundColor: badgeColor,
+              border: `1px solid ${sideColor}50`,
+              color: sideColor,
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              animation: 'pulse-opacity 1.5s infinite alternate'
+            }}>
+              <span style={{
+                width: '8px',
+                height: '8px',
+                backgroundColor: sideColor,
+                borderRadius: '50%',
+                display: 'inline-block'
+              }} />
+              LƯỢT ĐI
+            </span>
+          )}
+          {isWinner && (
+            <span style={{
+              backgroundColor: 'rgba(234, 179, 8, 0.15)',
+              border: '1px solid rgba(234, 179, 8, 0.4)',
+              color: 'var(--accent-yellow)',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              letterSpacing: '0.05em'
+            }}>
+              🏆 CHIẾN THẮNG
+            </span>
+          )}
+          {isLoser && (
+            <span style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#f87171',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              letterSpacing: '0.05em'
+            }}>
+              💀 THẤT BẠI
+            </span>
+          )}
+          {isDraw && (
+            <span style={{
+              backgroundColor: 'rgba(156, 163, 175, 0.15)',
+              border: '1px solid rgba(156, 163, 175, 0.4)',
+              color: '#9ca3af',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              letterSpacing: '0.05em'
+            }}>
+              🤝 HÒA CỜ
+          </span>
+          )}
+          {game.status === 'waiting' && isP1 && (
+            <span style={{
+              backgroundColor: 'rgba(234, 179, 8, 0.1)',
+              border: '1px solid rgba(234, 179, 8, 0.25)',
+              color: 'var(--accent-yellow)',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              fontWeight: 800
+            }}>
+              ⏳ ĐANG CHỜ...
+            </span>
+          )}
+          {game.status === 'playing' && !isTurn && (
+            <span style={{
+              backgroundColor: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: 'var(--text-muted)',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              fontWeight: 700
+            }}>
+              Vừa đi xong
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderBoard = () => {
     if (game.type === 'chess') {
       return renderChessboard(currentBoardState);
@@ -876,15 +1132,17 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
         </div>
 
         {/* State Banner */}
-        <div className="glass" style={{
-          padding: '8px 20px',
-          borderRadius: '10px',
-          borderLeft: game.status === 'playing' ? '4px solid var(--accent-cyan)' : game.status === 'finished' ? '4px solid var(--accent-green)' : '4px solid var(--accent-yellow)',
-          fontWeight: 700,
-          fontSize: '0.9rem'
-        }}>
-          {getStatusText()}
-        </div>
+        {game.type !== 'chess' && game.type !== 'xiangqi' && (
+          <div className="glass" style={{
+            padding: '8px 20px',
+            borderRadius: '10px',
+            borderLeft: game.status === 'playing' ? '4px solid var(--accent-cyan)' : game.status === 'finished' ? '4px solid var(--accent-green)' : '4px solid var(--accent-yellow)',
+            fontWeight: 700,
+            fontSize: '0.9rem'
+          }}>
+            {getStatusText()}
+          </div>
+        )}
       </div>
 
       <div style={{ gap: '30px' }} className="game-grid">
@@ -927,10 +1185,12 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           )}
 
+          {(game.type === 'chess' || game.type === 'xiangqi') && renderPlayerBar('player2')}
           {renderBoard()}
+          {(game.type === 'chess' || game.type === 'xiangqi') && renderPlayerBar('player1')}
           
           {/* Match Info Box */}
-          {(() => {
+          {(game.type !== 'chess' && game.type !== 'xiangqi') && (() => {
             const lastMoveEntry = game.history.length > 0 ? game.history[game.history.length - 1] : null;
 
             const isP1Turn = game.status === 'playing' && game.currentTurn === 'player1';
@@ -998,7 +1258,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                       {formatPlayerName(game.player1)}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      {game.type === 'chess' ? 'Trắng' : game.type === 'xiangqi' ? 'Đỏ' : 'X (Caro)'}
+                      {(game.type as string) === 'chess' ? 'Trắng' : (game.type as string) === 'xiangqi' ? 'Đỏ' : 'X (Caro)'}
                     </div>
                     {isP1Turn && (
                       <div style={{
@@ -1160,7 +1420,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                       )}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      {game.type === 'chess' ? 'Đen' : game.type === 'xiangqi' ? 'Đen' : 'O (Caro)'}
+                      {(game.type as string) === 'chess' ? 'Đen' : (game.type as string) === 'xiangqi' ? 'Đen' : 'O (Caro)'}
                     </div>
                     {isP2Turn && (
                       <div style={{
