@@ -19,9 +19,10 @@ export async function GET() {
         id: g.gameId,
         type: g.gameType,
         player1: g.createdBy,
-        player2: '',
+        player2: g.player2 || '',
         movesCount: 0,
-        updatedAt: g.createdAt
+        updatedAt: g.createdAt,
+        boardState: g.boardState
       })),
       activeGames: activeGames.map(g => ({
         id: g.id,
@@ -30,7 +31,8 @@ export async function GET() {
         player2: g.player2,
         currentTurn: g.currentTurn,
         movesCount: g.history.length,
-        updatedAt: g.updatedAt
+        updatedAt: g.updatedAt,
+        boardState: g.boardState
       })),
       completedGames: completedGames.map(g => ({
         id: g.id,

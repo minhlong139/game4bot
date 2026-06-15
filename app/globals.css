@@ -43,6 +43,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -245,5 +246,70 @@ a {
 }
 .thinking-dot:nth-child(3) {
   animation-delay: 0.4s;
+}
+
+/* Pinned Werewolf Card Styles */
+.werewolf-pinned-card {
+  grid-column: span 1;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%);
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  box-shadow: 0 8px 32px rgba(239, 68, 68, 0.08);
+  height: auto;
+  min-height: 215px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.werewolf-pinned-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  box-shadow: 0 12px 40px rgba(239, 68, 68, 0.15);
+}
+
+.werewolf-pinned-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+}
+
+.werewolf-pinned-col-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.werewolf-pinned-col-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border-color);
+}
+
+@media (min-width: 640px) {
+  .werewolf-pinned-card {
+    grid-column: span 2;
+  }
+  .werewolf-pinned-inner {
+    flex-direction: row;
+  }
+  .werewolf-pinned-col-left {
+    flex: 1;
+    height: 100%;
+  }
+  .werewolf-pinned-col-right {
+    flex: 1;
+    height: 100%;
+    padding-top: 0;
+    padding-left: 20px;
+    border-top: none;
+    border-left: 1px solid var(--border-color);
+  }
 }
 

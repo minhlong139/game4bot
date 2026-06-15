@@ -2,8 +2,9 @@ import { kv } from './kv';
 import { validateChessMove, CHESS_INITIAL_FEN } from './engines/chess';
 import { validateGomokuMove, createInitialGomokuState } from './engines/gomoku';
 import { validateXiangqiMove, XIANGQI_INITIAL_FEN } from './engines/xiangqi';
+import { initializeWerewolfState } from './engines/werewolf';
 
-export type GameType = 'chess' | 'xiangqi' | 'gomoku';
+export type GameType = 'chess' | 'xiangqi' | 'gomoku' | 'werewolf';
 export type GameStatus = 'waiting' | 'playing' | 'finished';
 
 export interface MoveHistoryEntry {
@@ -33,7 +34,8 @@ export interface GameData {
 export const GAME_RULES: Record<GameType, string> = {
   chess: 'Cờ vua quốc tế tiêu chuẩn. Người tạo game là player1 (Quân Trắng, đi trước), người tham gia là player2 (Quân Đen, đi sau). Định dạng nước đi có thể là tọa độ từ-đến (ví dụ: "e2e4", "g1f3") hoặc ký hiệu SAN (ví dụ: "e4", "Nf3"). Phong cấp quân tốt được ký hiệu bằng cách thêm ký tự quân cờ ở cuối (ví dụ: "e7e8q" để phong Hậu).',
   xiangqi: 'Cờ tướng giản lược. Người tạo game là player1 (Quân Đỏ, đi trước), người tham gia là player2 (Quân Đen, đi sau). Bàn cờ gồm 9 cột (a-i) x 10 hàng (0-9). Định dạng nước đi bắt buộc là 4 ký tự tọa độ bắt đầu - kết thúc (ví dụ: "h7e7" để đi pháo đầu, "h0g2" để đi mã). Hệ thống xác thực luật di chuyển cơ bản của các quân cờ và chặn luật lộ tướng. Game kết thúc khi một bên bị ăn mất Tướng.',
-  gomoku: 'Cờ caro tự do. Người tạo game là player1 (Quân Đen / ký hiệu "X", đi trước), người tham gia là player2 (Quân Trắng / ký hiệu "O", đi sau). Bàn cờ kích thước 15x15. Định dạng nước đi có thể là "x,y" (tọa độ từ 0-14, ví dụ: "7,7" là trung tâm) hoặc dạng cờ vua (a-o cho cột, 1-15 cho hàng, ví dụ: "h8"). Bên nào đạt được từ 5 quân liên tiếp hàng ngang, dọc hoặc chéo trước sẽ giành chiến thắng. Không áp dụng luật chặn hai đầu hay cấm nước đi.'
+  gomoku: 'Cờ caro tự do. Người tạo game là player1 (Quân Đen / ký hiệu "X", đi trước), người tham gia là player2 (Quân Trắng / ký hiệu "O", đi sau). Bàn cờ kích thước 15x15. Định dạng nước đi có thể là "x,y" (tọa độ từ 0-14, ví dụ: "7,7" là trung tâm) hoặc dạng cờ vua (a-o cho cột, 1-15 cho hàng, ví dụ: "h8"). Bên nào đạt được từ 5 quân liên tiếp hàng ngang, dọc hoặc chéo trước sẽ giành chiến thắng. Không áp dụng luật chặn hai đầu hay cấm nước đi.',
+  werewolf: 'Trò chơi suy luận xã hội Ma Sói (Avalon AI rút gọn). Tối thiểu 6 và tối đa 10 bot tham gia qua API. Gồm 2 phe: Phe Thiện (Merlin, Percival và các Servant trung thành) và Phe Ác (Morgana và Assassin). Trải qua các giai đoạn tranh luận, chất vấn, và bỏ phiếu loại bỏ. Hỗ trợ 100% người chơi là AI Agent, người dùng chỉ theo dõi.'
 };
 
 export async function createGame(creator: string, type: GameType): Promise<string> {
@@ -46,6 +48,8 @@ export async function createGame(creator: string, type: GameType): Promise<strin
     initialBoardState = XIANGQI_INITIAL_FEN;
   } else if (type === 'gomoku') {
     initialBoardState = JSON.stringify(createInitialGomokuState());
+  } else if (type === 'werewolf') {
+    initialBoardState = JSON.stringify(initializeWerewolfState([]));
   }
 
   const game: GameData = {
@@ -136,6 +140,58 @@ export async function joinGame(gameId: string, player2: string): Promise<GameDat
   if (!game) return null;
   if (game.status !== 'waiting') return null;
 
+  if (game.type === 'werewolf') {
+    let state;
+    try {
+      state = JSON.parse(game.boardState || '{}');
+    } catch (e) {
+      state = { players: [], status: 'waiting', round: 0, phase: 0, countdownStartAt: null };
+    }
+
+    // Check if player is already in game
+    const alreadyJoined = state.players.some((p: any) => p.username === player2);
+    if (alreadyJoined) return game; // already in lobby
+
+    if (state.players.length >= 10) return null; // full
+
+    // Add player to lobby
+    state.players.push({
+      username: player2,
+      role: '',
+      side: '',
+      isAlive: true,
+      emotion: 'Bình thường',
+      speechPoints: 100,
+      privateMemory: { suspicions: {}, reasoning: '' },
+      scores: { reasoning: 0, consistency: 0, persuasion: 0, deception: 0, calibration: 0 }
+    });
+
+    // If we reach 6 players and countdown isn't started, start it!
+    if (state.players.length >= 6 && !state.countdownStartAt) {
+      state.countdownStartAt = new Date().toISOString();
+      await addActivity(`[Chơi game] Game Ma Sói ID ${gameId.substring(0, 8)} đạt đủ 6 người chơi, bắt đầu đếm ngược 60 giây để chuẩn bị bắt đầu!`);
+    }
+
+    // If we reach 10 players, start immediately!
+    if (state.players.length === 10) {
+      const { startWerewolfGame } = await import('./engines/werewolf');
+      state = startWerewolfGame(state);
+      game.status = 'playing';
+      await kv.srem('games:waiting', gameId);
+      await kv.sadd('games:active', gameId);
+      await addActivity(`[Chơi game] Game Ma Sói ID ${gameId.substring(0, 8)} đạt tối đa 10 người chơi, trận đấu chính thức bắt đầu!`);
+    }
+
+    game.boardState = JSON.stringify(state);
+    game.updatedAt = new Date().toISOString();
+    // Update player2 field with list of joined players
+    game.player2 = state.players.map((p: any) => p.username).join(', ');
+
+    await kv.set(`game:${gameId}`, game);
+    await addActivity(`[Chơi game] ${player2} tham gia phòng chờ game Ma Sói ID ${gameId.substring(0, 8)} (${state.players.length}/10)`);
+    return game;
+  }
+
   game.player2 = player2;
   game.status = 'playing';
   game.updatedAt = new Date().toISOString();
@@ -158,10 +214,36 @@ export async function joinGame(gameId: string, player2: string): Promise<GameDat
 }
 
 export async function getGame(gameId: string): Promise<GameData | null> {
-  return kv.get<GameData>(`game:${gameId}`);
+  const game = await kv.get<GameData>(`game:${gameId}`);
+  if (game && game.type === 'werewolf') {
+    if (game.status === 'playing' || game.status === 'waiting') {
+      const { maybeAdvanceWerewolfGame } = await import('./engines/werewolf');
+      const updatedGame = await maybeAdvanceWerewolfGame(game);
+      if (updatedGame) {
+        return updatedGame;
+      }
+    }
+  }
+  return game;
 }
 
-export async function getWaitingGames(): Promise<Array<{ gameId: string; gameType: GameType; createdBy: string; createdAt: string }>> {
+export async function getWaitingGames(): Promise<Array<{ gameId: string; gameType: GameType; createdBy: string; createdAt: string; player2?: string; boardState?: string }>> {
+  // Check if there is any active or waiting werewolf game. If not, auto-create one.
+  const activeIds = await kv.smembers('games:active');
+  const waitingIds = await kv.smembers('games:waiting');
+  let hasWerewolf = false;
+  for (const id of [...activeIds, ...waitingIds]) {
+    const g = await kv.get<GameData>(`game:${id}`);
+    if (g && g.type === 'werewolf' && (g.status === 'waiting' || g.status === 'playing')) {
+      hasWerewolf = true;
+      break;
+    }
+  }
+  if (!hasWerewolf) {
+    console.log('No active/waiting werewolf game found. Auto-creating a new one...');
+    await createGame('System', 'werewolf');
+  }
+
   const gameIds = await kv.smembers('games:waiting');
   const games = await Promise.all(gameIds.map(id => kv.get<GameData>(`game:${id}`)));
   const list = [];
@@ -176,7 +258,9 @@ export async function getWaitingGames(): Promise<Array<{ gameId: string; gameTyp
           gameId: game.id,
           gameType: game.type,
           createdBy: game.player1,
-          createdAt: game.createdAt
+          createdAt: game.createdAt,
+          player2: game.player2,
+          boardState: game.boardState
         });
       }
     } else {

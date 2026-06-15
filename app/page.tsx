@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 
 interface GameItem {
   id: string;
-  type: 'chess' | 'xiangqi' | 'gomoku';
+  type: 'chess' | 'xiangqi' | 'gomoku' | 'werewolf';
   player1: string;
   player2: string;
   currentTurn?: 'player1' | 'player2';
@@ -13,6 +13,7 @@ interface GameItem {
   movesCount: number;
   updatedAt: string;
   status: 'waiting' | 'playing' | 'finished';
+  boardState?: string;
 }
 
 interface LeaderboardEntry {
@@ -52,18 +53,11 @@ function formatPlayerName(username: string): string {
         return `${animal.icon} ${animal.name}`;
       }
     }
+    return username;
   }
-  const BOT_USERNAMES = [
-    'girl_xinh_dang_yeu_8x',
-    'boy_pho_co_ha_noi',
-    'kute_boy_9x',
-    'cong_chua_bong_bong_2000',
-    'hiep_si_mu_2000'
-  ];
-  if (BOT_USERNAMES.includes(username)) {
-    return `🤖 ${username}`;
-  }
-  return username;
+  if (username.startsWith('🤖')) return username;
+  if (username === 'System') return '⚙️ Hệ thống';
+  return `🤖 ${username}`;
 }
 
 function formatActivityText(text: string): string {
@@ -168,6 +162,33 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [humanUser, setHumanUser] = useState<HumanUser | null>(null);
   const [apiTab, setApiTab] = useState<'auth' | 'matchmaking' | 'play' | 'moves' | 'webhook'>('auth');
+
+  const activitiesRef = useRef<HTMLDivElement>(null);
+  const prevActivitiesLengthRef = useRef(0);
+  const prevScrollHeightRef = useRef(0);
+  const prevScrollTopRef = useRef(0);
+
+  const handleActivitiesScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    prevScrollTopRef.current = el.scrollTop;
+    prevScrollHeightRef.current = el.scrollHeight;
+  };
+
+  useEffect(() => {
+    const el = activitiesRef.current;
+    if (!el) return;
+
+    if (data.activities.length > prevActivitiesLengthRef.current && prevActivitiesLengthRef.current > 0) {
+      const scrollHeightDiff = el.scrollHeight - prevScrollHeightRef.current;
+      if (scrollHeightDiff > 0 && prevScrollTopRef.current > 10) {
+        el.scrollTop = prevScrollTopRef.current + scrollHeightDiff;
+        prevScrollTopRef.current = el.scrollTop;
+      }
+    }
+
+    prevActivitiesLengthRef.current = data.activities.length;
+    prevScrollHeightRef.current = el.scrollHeight;
+  }, [data.activities]);
   
   // Interactive / Popup Play states
   const [isLoginPopupOpen, setIsLoginPopupOpen] = useState(false);
@@ -357,6 +378,7 @@ export default function DashboardPage() {
     if (type === 'chess') return 'Cờ Vua';
     if (type === 'xiangqi') return 'Cờ Tướng';
     if (type === 'gomoku') return 'Cờ Caro';
+    if (type === 'werewolf') return 'Ma Sói (Avalon)';
     return type;
   };
 
@@ -366,6 +388,9 @@ export default function DashboardPage() {
     }
     if (type === 'xiangqi') {
       return { char: '🐉', bg: 'rgba(234, 179, 8, 0.12)', border: 'rgba(234, 179, 8, 0.3)', color: '#fef08a' };
+    }
+    if (type === 'werewolf') {
+      return { char: '🐺', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.3)', color: '#f87171' };
     }
     return { char: '🎯', bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.3)', color: '#a5f3fc' };
   };
@@ -377,7 +402,17 @@ export default function DashboardPage() {
     ...data.completedGames.map(g => ({ ...g, status: 'finished' as const })),
   ];
 
-  const visibleGames = combinedGames.slice(0, visibleCount);
+  // Pin active/waiting werewolf game to the first position
+  const werewolfIndex = combinedGames.findIndex(
+    g => g.type === 'werewolf' && (g.status === 'waiting' || g.status === 'playing')
+  );
+  let sortedGames = [...combinedGames];
+  if (werewolfIndex !== -1) {
+    const [werewolfGame] = sortedGames.splice(werewolfIndex, 1);
+    sortedGames.unshift(werewolfGame);
+  }
+
+  const visibleGames = sortedGames.slice(0, visibleCount);
 
   return (
     <div className="container" style={{ padding: '40px 1.5rem' }}>
@@ -408,7 +443,7 @@ export default function DashboardPage() {
       <div style={{ gap: '30px' }} className="dashboard-grid">
         
         {/* Left Side: Unified Games Grid */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', minHeight: '650px' }}>
           
           {/* Active section header with inline Play Game buttons */}
           <section>
@@ -471,8 +506,34 @@ export default function DashboardPage() {
             </div>
 
             {loading && combinedGames.length === 0 ? (
-              <div className="glass flex-center" style={{ height: '200px', color: 'var(--text-muted)' }}>
-                Đang tải dữ liệu trận đấu...
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(285px, 1fr))', gap: '20px' }}>
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <div key={`skeleton-${idx}`} className="glass" style={{ 
+                    height: '215px', 
+                    padding: '20px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '15px', 
+                    position: 'relative',
+                    animation: 'pulse 1.5s infinite ease-in-out',
+                    animationDelay: `${idx * 0.15}s`,
+                    opacity: 0.5
+                  }}>
+                    <div className="flex-between">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)' }} />
+                        <div>
+                          <div style={{ width: '85px', height: '14px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.05)', marginBottom: '6px' }} />
+                          <div style={{ width: '55px', height: '10px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.05)' }} />
+                        </div>
+                      </div>
+                      <div style={{ width: '60px', height: '18px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.05)' }} />
+                    </div>
+                    <div style={{ height: '38px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.03)' }} />
+                    <div style={{ height: '18px', width: '130px', margin: '0 auto', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.02)' }} />
+                    <div style={{ height: '38px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.04)' }} />
+                  </div>
+                ))}
               </div>
             ) : combinedGames.length === 0 ? (
               <div className="glass flex-center" style={{ height: '150px', color: 'var(--text-muted)' }}>
@@ -481,156 +542,409 @@ export default function DashboardPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(285px, 1fr))', gap: '20px' }}>
-                  {visibleGames.map((game) => {
+                  {visibleGames.map((game, idx) => {
                     const iconStyle = getGameIcon(game.type);
                     const isOwnGame = humanUser && game.player1 === humanUser.username;
                     
-                    return (
-                      <div key={game.id} className="glass" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', position: 'relative' }}>
-                        
-                        {/* Game type header row */}
-                        <div className="flex-between">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{
-                              width: '36px',
-                              height: '36px',
-                              borderRadius: '8px',
-                              backgroundColor: iconStyle.bg,
-                              border: `1px solid ${iconStyle.border}`,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '1.3rem'
+                    const isPinnedWerewolf = game.type === 'werewolf' && (game.status === 'waiting' || game.status === 'playing') && idx === 0;
+                    let wwRounds = 0;
+                    let wwTotal = 0;
+                    let wwAlive = 0;
+                    let wwDead = 0;
+                    let wwStatusLabel = <span style={{ fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(234,179,8,0.1)', color: 'var(--accent-yellow)', border: '1px solid rgba(234,179,8,0.2)' }}>Đang chờ</span>;
+
+                    if (game.type === 'werewolf' && game.boardState) {
+                      try {
+                        const parsed = JSON.parse(game.boardState);
+                        if (parsed) {
+                          wwRounds = parsed.round || 0;
+                          wwTotal = parsed.players?.length || 0;
+                          wwAlive = parsed.players?.filter((p: any) => p.isAlive).length || 0;
+                          wwDead = parsed.players?.filter((p: any) => !p.isAlive).length || 0;
+
+                          let statusText = 'Đang chờ';
+                          let statusStyle = {
+                            backgroundColor: 'rgba(234,179,8,0.1)',
+                            color: 'var(--accent-yellow)',
+                            borderColor: 'rgba(234,179,8,0.2)'
+                          };
+
+                          if (game.status === 'playing') {
+                            if (parsed.phase === 6) {
+                              statusText = 'Sắp kết thúc';
+                              statusStyle = {
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                color: '#f87171',
+                                borderColor: 'rgba(239, 68, 68, 0.2)'
+                              };
+                            } else {
+                              statusText = 'Đang chơi';
+                              statusStyle = {
+                                backgroundColor: 'rgba(16,185,129,0.1)',
+                                color: 'var(--accent-green)',
+                                borderColor: 'rgba(16,185,129,0.2)'
+                              };
+                            }
+                          }
+
+                          wwStatusLabel = (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 800,
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: statusStyle.backgroundColor,
+                              color: statusStyle.color,
+                              border: `1px solid ${statusStyle.borderColor}`
                             }}>
-                              {iconStyle.char}
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#ffffff' }}>
-                                {getGameName(game.type)}
+                              {statusText}
+                            </span>
+                          );
+                        }
+                      } catch (e) {
+                        console.error('Error parsing werewolf boardState for card:', e);
+                      }
+                    }
+
+                    return (
+                      <div key={game.id} className={isPinnedWerewolf ? 'werewolf-pinned-card' : 'glass'} style={{ 
+                        padding: '20px', 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: '15px', 
+                        position: 'relative',
+                        height: isPinnedWerewolf ? 'auto' : '215px',
+                        minHeight: isPinnedWerewolf ? '215px' : undefined,
+                        justifyContent: 'space-between',
+                        gridColumn: isPinnedWerewolf ? 'span 2' : undefined
+                      }}>
+                        {isPinnedWerewolf ? (
+                          <div className="werewolf-pinned-inner" style={{ height: '100%' }}>
+                            {/* Left Column: Info & Action */}
+                            <div className="werewolf-pinned-col-left">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{
+                                  width: '40px',
+                                  height: '40px',
+                                  borderRadius: '10px',
+                                  backgroundColor: iconStyle.bg,
+                                  border: `1px solid ${iconStyle.border}`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '1.5rem'
+                                }}>
+                                  {iconStyle.char}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 900, fontSize: '1.05rem', color: '#ffffff', letterSpacing: '-0.02em' }}>
+                                    {getGameName(game.type)}
+                                  </div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    ID: {game.id.substring(0, 8)}...
+                                  </div>
+                                </div>
                               </div>
-                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                                ID: {game.id.substring(0, 8)}...
-                              </div>
-                            </div>
-                          </div>
 
-                          {/* Status Badge */}
-                          {game.status === 'waiting' && (
-                            <span style={{ fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(234,179,8,0.1)', color: 'var(--accent-yellow)', border: '1px solid rgba(234,179,8,0.2)' }}>
-                              Đang chờ
-                            </span>
-                          )}
-                          {game.status === 'playing' && (
-                            <span style={{ fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(16,185,129,0.1)', color: 'var(--accent-green)', border: '1px solid rgba(16,185,129,0.2)' }}>
-                              Đang chơi
-                            </span>
-                          )}
-                          {game.status === 'finished' && (
-                            <span style={{ fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
-                              Đã kết thúc
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Players on a single line */}
-                        <div style={{
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          backgroundColor: 'rgba(255,255,255,0.02)',
-                          border: '1px solid var(--border-color)',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                          textAlign: 'center',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}>
-                          <span style={{ color: 'var(--accent-cyan)' }}>🤖 {game.player1}</span>
-                          <span style={{ color: 'var(--text-muted)', padding: '0 8px' }}>vs</span>
-                          {game.status === 'waiting' ? (
-                            <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>(Chờ...)</span>
-                          ) : (
-                            <span style={{ color: 'var(--accent-purple)' }}>🤖 {game.player2}</span>
-                          )}
-                        </div>
-
-                        {/* Winner label if finished */}
-                        {game.status === 'finished' && (
-                          <div style={{ fontSize: '0.75rem', textAlign: 'center', color: 'var(--accent-green)', fontWeight: 600 }}>
-                            {game.winner === 'draw' ? ' kết quả: Hòa ' : ` Thắng cuộc: ${game.winner === 'player1' ? game.player1 : game.player2} `}
-                          </div>
-                        )}
-
-                        {/* CTA Action button */}
-                        <div>
-                          {game.status === 'waiting' ? (
-                            isOwnGame ? (
-                              <Link href={`/game/${game.id}`} style={{
-                                display: 'block',
-                                width: '100%',
-                                padding: '10px',
+                              <div style={{
+                                padding: '10px 12px',
                                 borderRadius: '8px',
-                                textAlign: 'center',
+                                backgroundColor: 'rgba(255,255,255,0.02)',
                                 border: '1px solid var(--border-color)',
-                                backgroundColor: 'rgba(255,255,255,0.04)',
-                                color: 'var(--text-secondary)',
+                                fontSize: '0.8rem',
                                 fontWeight: 700,
-                                fontSize: '0.85rem'
-                              }} className="hover-btn">
-                                Xem Phòng
-                              </Link>
+                                textAlign: 'center',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {game.status === 'waiting' ? (
+                                  <span style={{ color: 'var(--accent-yellow)' }}>
+                                    👥 Sảnh chờ: {game.player2 ? game.player2.split(', ').length : 0}/10 Agent
+                                  </span>
+                                ) : (
+                                  <span style={{ color: 'var(--accent-cyan)' }}>
+                                    🐺 Trận đấu hoạt động ({game.player2 ? game.player2.split(', ').length : 0} Agent)
+                                  </span>
+                                )}
+                              </div>
+
+                              <div>
+                                {game.status === 'waiting' ? (
+                                  <div style={{
+                                    width: '100%',
+                                    padding: '10px',
+                                    borderRadius: '8px',
+                                    textAlign: 'center',
+                                    border: '1px solid rgba(234,179,8,0.2)',
+                                    backgroundColor: 'rgba(234,179,8,0.05)',
+                                    color: 'var(--accent-yellow)',
+                                    fontWeight: 700,
+                                    fontSize: '0.85rem'
+                                  }}>
+                                    ⏳ Đợi Bot kết nối qua API...
+                                  </div>
+                                ) : (
+                                  <Link href={`/game/${game.id}`} style={{
+                                    display: 'block',
+                                    width: '100%',
+                                    padding: '10px',
+                                    borderRadius: '8px',
+                                    textAlign: 'center',
+                                    background: 'linear-gradient(to right, var(--accent-cyan), var(--accent-purple))',
+                                    color: '#ffffff',
+                                    fontWeight: 700,
+                                    fontSize: '0.85rem',
+                                    boxShadow: '0 4px 12px rgba(6, 182, 212, 0.25)',
+                                  }} className="hover-btn">
+                                    📺 Xem Trực Tiếp
+                                  </Link>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Right Column: Werewolf Detailed Stats Dashboard */}
+                            <div className="werewolf-pinned-col-right">
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 650 }}>
+                                  Trạng thái chi tiết:
+                                </span>
+                                {wwStatusLabel}
+                              </div>
+
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', margin: '5px 0' }}>
+                                <div style={{ padding: '8px 10px', borderRadius: '6px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Số vòng đấu</div>
+                                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>Vòng {wwRounds}</div>
+                                </div>
+                                <div style={{ padding: '8px 10px', borderRadius: '6px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tham gia</div>
+                                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff' }}>{wwTotal} / 10</div>
+                                </div>
+                                <div style={{ padding: '8px 10px', borderRadius: '6px', backgroundColor: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.1)' }}>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--accent-green)' }}>Còn lại (Sống)</div>
+                                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--accent-green)' }}>{wwAlive}</div>
+                                </div>
+                                <div style={{ padding: '8px 10px', borderRadius: '6px', backgroundColor: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.1)' }}>
+                                  <div style={{ fontSize: '0.7rem', color: '#f87171' }}>Tử nạn (Chết)</div>
+                                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#f87171' }}>{wwDead}</div>
+                                </div>
+                              </div>
+
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <span>Tiến trình:</span>
+                                <div style={{ flex: 1, height: '4px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                                  <div style={{
+                                    height: '100%',
+                                    width: `${(wwAlive / (wwTotal || 10)) * 100}%`,
+                                    background: 'linear-gradient(to right, #f87171, #10b981)',
+                                    borderRadius: '2px'
+                                  }} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Game type header row */}
+                            <div className="flex-between">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  borderRadius: '8px',
+                                  backgroundColor: iconStyle.bg,
+                                  border: `1px solid ${iconStyle.border}`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '1.3rem'
+                                }}>
+                                  {iconStyle.char}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#ffffff' }}>
+                                    {getGameName(game.type)}
+                                  </div>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                    ID: {game.id.substring(0, 8)}...
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Status Badge */}
+                              {game.status === 'waiting' && (
+                                <span style={{ fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(234,179,8,0.1)', color: 'var(--accent-yellow)', border: '1px solid rgba(234,179,8,0.2)' }}>
+                                  Đang chờ
+                                </span>
+                              )}
+                              {game.status === 'playing' && (
+                                <span style={{ fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(16,185,129,0.1)', color: 'var(--accent-green)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                                  Đang chơi
+                                </span>
+                              )}
+                              {game.status === 'finished' && (
+                                <span style={{ fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
+                                  Đã kết thúc
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Players list or count */}
+                            {game.type === 'werewolf' ? (
+                              <div style={{
+                                padding: '10px 12px',
+                                borderRadius: '8px',
+                                backgroundColor: 'rgba(255,255,255,0.02)',
+                                border: '1px solid var(--border-color)',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                textAlign: 'center',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {game.status === 'waiting' ? (
+                                  <span style={{ color: 'var(--accent-yellow)' }}>
+                                    👥 Phòng chờ: {game.player2 ? game.player2.split(', ').length : 0}/10 Agent
+                                  </span>
+                                ) : (
+                                  <span style={{ color: 'var(--accent-cyan)' }}>
+                                    🐺 Trận Ma Sói ({game.player2 ? game.player2.split(', ').length : 0} Agent)
+                                  </span>
+                                )}
+                              </div>
                             ) : (
-                              <button
-                                onClick={() => handleJoinGameClick(game.id)}
-                                disabled={joiningGameId !== null}
-                                style={{
+                              // Default 2-player display (chess / xiangqi / gomoku)
+                              <div style={{
+                                padding: '10px 12px',
+                                borderRadius: '8px',
+                                backgroundColor: 'rgba(255,255,255,0.02)',
+                                border: '1px solid var(--border-color)',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                textAlign: 'center',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                <span style={{ color: 'var(--accent-cyan)' }}>{formatPlayerName(game.player1)}</span>
+                                <span style={{ color: 'var(--text-muted)', padding: '0 8px' }}>vs</span>
+                                {game.status === 'waiting' ? (
+                                  <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>(Chờ...)</span>
+                                ) : (
+                                  <span style={{ color: 'var(--accent-purple)' }}>{formatPlayerName(game.player2)}</span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Stable height placeholder for status/winner label */}
+                            <div style={{ 
+                              fontSize: '0.75rem', 
+                              textAlign: 'center', 
+                              color: game.status === 'finished' ? 'var(--accent-green)' : 'transparent', 
+                              fontWeight: 600,
+                              height: '18px',
+                              overflow: 'hidden',
+                              userSelect: 'none'
+                            }}>
+                              {game.status === 'finished' ? (
+                                game.type === 'werewolf' ? (
+                                  ` Phe thắng: ${game.winner === 'player1' ? 'Thiện (Good)' : 'Ác (Evil)'} `
+                                ) : (
+                                  game.winner === 'draw' ? ' kết quả: Hòa ' : ` Thắng cuộc: ${game.winner === 'player1' ? formatPlayerName(game.player1) : formatPlayerName(game.player2)} `
+                                )
+                              ) : (
+                                'placeholder'
+                              )}
+                            </div>
+
+                            {/* CTA Action button */}
+                            <div>
+                              {game.status === 'waiting' ? (
+                                game.type === 'werewolf' ? (
+                                  <div style={{
+                                    width: '100%',
+                                    padding: '10px',
+                                    borderRadius: '8px',
+                                    textAlign: 'center',
+                                    border: '1px solid rgba(234,179,8,0.2)',
+                                    backgroundColor: 'rgba(234,179,8,0.05)',
+                                    color: 'var(--accent-yellow)',
+                                    fontWeight: 700,
+                                    fontSize: '0.85rem'
+                                  }}>
+                                    ⏳ Đợi Bot kết nối qua API...
+                                  </div>
+                                ) : isOwnGame ? (
+                                  <Link href={`/game/${game.id}`} style={{
+                                    display: 'block',
+                                    width: '100%',
+                                    padding: '10px',
+                                    borderRadius: '8px',
+                                    textAlign: 'center',
+                                    border: '1px solid var(--border-color)',
+                                    backgroundColor: 'rgba(255,255,255,0.04)',
+                                    color: 'var(--text-secondary)',
+                                    fontWeight: 700,
+                                    fontSize: '0.85rem'
+                                  }} className="hover-btn">
+                                    Xem Phòng
+                                  </Link>
+                                ) : (
+                                  <button
+                                    onClick={() => handleJoinGameClick(game.id)}
+                                    disabled={joiningGameId !== null}
+                                    style={{
+                                      width: '100%',
+                                      padding: '10px',
+                                      borderRadius: '8px',
+                                      border: 'none',
+                                      backgroundColor: 'var(--accent-green)',
+                                      color: '#000000',
+                                      fontWeight: 700,
+                                      fontSize: '0.85rem',
+                                      cursor: 'pointer'
+                                    }}
+                                    className="hover-btn"
+                                  >
+                                    {joiningGameId === game.id ? 'Đang vào...' : '🎮 Chơi Ngay'}
+                                  </button>
+                                )
+                              ) : game.status === 'playing' ? (
+                                <Link href={`/game/${game.id}`} style={{
+                                  display: 'block',
                                   width: '100%',
                                   padding: '10px',
                                   borderRadius: '8px',
-                                  border: 'none',
-                                  backgroundColor: 'var(--accent-green)',
-                                  color: '#000000',
+                                  textAlign: 'center',
+                                  background: 'linear-gradient(to right, var(--accent-cyan), var(--accent-purple))',
+                                  color: '#ffffff',
                                   fontWeight: 700,
                                   fontSize: '0.85rem',
-                                  cursor: 'pointer'
-                                }}
-                                className="hover-btn"
-                              >
-                                {joiningGameId === game.id ? 'Đang vào...' : '🎮 Chơi Ngay'}
-                              </button>
-                            )
-                          ) : game.status === 'playing' ? (
-                            <Link href={`/game/${game.id}`} style={{
-                              display: 'block',
-                              width: '100%',
-                              padding: '10px',
-                              borderRadius: '8px',
-                              textAlign: 'center',
-                              background: 'linear-gradient(to right, var(--accent-cyan), var(--accent-purple))',
-                              color: '#ffffff',
-                              fontWeight: 700,
-                              fontSize: '0.85rem',
-                              boxShadow: '0 4px 12px rgba(6, 182, 212, 0.25)',
-                            }} className="hover-btn">
-                              📺 Xem Trực Tiếp
-                            </Link>
-                          ) : (
-                            <Link href={`/game/${game.id}`} style={{
-                              display: 'block',
-                              width: '100%',
-                              padding: '10px',
-                              borderRadius: '8px',
-                              textAlign: 'center',
-                              border: '1px solid var(--border-color)',
-                              backgroundColor: 'rgba(255,255,255,0.04)',
-                              color: 'var(--accent-cyan)',
-                              fontWeight: 700,
-                              fontSize: '0.85rem'
-                            }} className="hover-btn">
-                              👁️ Xem Lại
-                            </Link>
-                          )}
-                        </div>
+                                  boxShadow: '0 4px 12px rgba(6, 182, 212, 0.25)',
+                                }} className="hover-btn">
+                                  📺 Xem Trực Tiếp
+                                </Link>
+                              ) : (
+                                <Link href={`/game/${game.id}`} style={{
+                                  display: 'block',
+                                  width: '100%',
+                                  padding: '10px',
+                                  borderRadius: '8px',
+                                  textAlign: 'center',
+                                  border: '1px solid var(--border-color)',
+                                  backgroundColor: 'rgba(255,255,255,0.04)',
+                                  color: 'var(--accent-cyan)',
+                                  fontWeight: 700,
+                                  fontSize: '0.85rem'
+                                }} className="hover-btn">
+                                  👁️ Xem Lại
+                                </Link>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   })}
@@ -875,84 +1189,112 @@ Response thất bại: { "status": "error", "message": "Nước đi không hợp
         <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
           
           {/* Module Hoạt động */}
-          <div id="activities">
+          <div id="activities" style={{ display: 'flex', flexDirection: 'column' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px' }}>Hoạt Động Hệ Thống</h2>
             
-            {loading && data.activities.length === 0 ? (
-              <div className="glass flex-center" style={{ height: '200px', color: 'var(--text-muted)' }}>
-                Đang tải hoạt động...
-              </div>
-            ) : data.activities.length === 0 ? (
-              <div className="glass flex-center" style={{ height: '150px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>
-                Chưa có hoạt động nào được ghi nhận.
-              </div>
-            ) : (
-              <div className="glass" style={{
-                maxHeight: '350px',
-                overflowY: 'auto',
-                padding: '10px 5px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(255,255,255,0.1) transparent'
-              }}>
-                {data.activities.map((act) => renderActivityItem(act))}
-              </div>
-            )}
+            <div className="glass" style={{
+              height: '350px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'stretch',
+              overflow: 'hidden'
+            }}>
+              {loading && data.activities.length === 0 ? (
+                <div className="flex-center" style={{ flex: 1, color: 'var(--text-muted)' }}>
+                  Đang tải hoạt động...
+                </div>
+              ) : data.activities.length === 0 ? (
+                <div className="flex-center" style={{ flex: 1, color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>
+                  Chưa có hoạt động nào được ghi nhận.
+                </div>
+              ) : (
+                <div 
+                  ref={activitiesRef}
+                  onScroll={handleActivitiesScroll}
+                  style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    padding: '10px 5px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'rgba(255,255,255,0.1) transparent'
+                  }}
+                >
+                  {data.activities.map((act) => renderActivityItem(act))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Sidebar - Leaderboard */}
-          <div id="leaderboard">
+          <div id="leaderboard" style={{ display: 'flex', flexDirection: 'column' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '20px' }}>Bảng Xếp Hạng Bot</h2>
             
-            {loading && data.leaderboard.length === 0 ? (
-              <div className="glass flex-center" style={{ height: '300px', color: 'var(--text-muted)' }}>
-                Đang tải bảng xếp hạng...
-              </div>
-            ) : data.leaderboard.length === 0 ? (
-              <div className="glass flex-center" style={{ height: '200px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>
-                Chưa có Bot nào trong bảng xếp hạng. Hãy đăng ký tài khoản cho Bot!
-              </div>
-            ) : (
-              <div className="glass" style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {data.leaderboard.map((bot, index) => {
-                  const getRankBadge = (idx: number) => {
-                    if (idx === 0) return '🥇';
-                    if (idx === 1) return '🥈';
-                    if (idx === 2) return '🥉';
-                    return `#${idx + 1}`;
-                  };
+            <div className="glass" style={{
+              height: '530px',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '15px',
+              overflow: 'hidden'
+            }}>
+              {loading && data.leaderboard.length === 0 ? (
+                <div className="flex-center" style={{ flex: 1, color: 'var(--text-muted)' }}>
+                  Đang tải bảng xếp hạng...
+                </div>
+              ) : data.leaderboard.length === 0 ? (
+                <div className="flex-center" style={{ flex: 1, color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>
+                  Chưa có Bot nào trong bảng xếp hạng. Hãy đăng ký tài khoản cho Bot!
+                </div>
+              ) : (
+                <div style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'rgba(255,255,255,0.1) transparent'
+                }}>
+                  {data.leaderboard.map((bot, index) => {
+                    const getRankBadge = (idx: number) => {
+                      if (idx === 0) return '🥇';
+                      if (idx === 1) return '🥈';
+                      if (idx === 2) return '🥉';
+                      return `#${idx + 1}`;
+                    };
 
-                  return (
-                    <div key={bot.username} className="flex-between" style={{
-                      padding: '12px 15px',
-                      borderRadius: '10px',
-                      background: index < 3 ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
-                      border: index < 3 ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid transparent',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontWeight: 800, fontSize: index < 3 ? '1.1rem' : '0.85rem' }}>
-                          {getRankBadge(index)}
-                        </span>
-                        <span style={{ fontWeight: 700, color: index === 0 ? 'var(--accent-yellow)' : 'var(--text-primary)' }}>
-                          {bot.username}
-                        </span>
-                      </div>
-                      
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 800, color: 'var(--accent-cyan)', fontSize: '1.05rem' }}>
-                          {bot.score} pts
+                    return (
+                      <div key={bot.username} className="flex-between" style={{
+                        padding: '12px 15px',
+                        borderRadius: '10px',
+                        background: index < 3 ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
+                        border: index < 3 ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid transparent',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontWeight: 800, fontSize: index < 3 ? '1.1rem' : '0.85rem' }}>
+                            {getRankBadge(index)}
+                          </span>
+                          <span style={{ fontWeight: 700, color: index === 0 ? 'var(--accent-yellow)' : 'var(--text-primary)' }}>
+                            {bot.username}
+                          </span>
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          {bot.wins}W - {bot.draws}D - {bot.losses}L
+                        
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontWeight: 800, color: 'var(--accent-cyan)', fontSize: '1.05rem' }}>
+                            {bot.score} pts
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {bot.wins}W - {bot.draws}D - {bot.losses}L
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
         </div>

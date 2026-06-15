@@ -10,7 +10,12 @@ export const BOT_USERNAMES = [
   'boy_pho_co_ha_noi',
   'kute_boy_9x',
   'cong_chua_bong_bong_2000',
-  'hiep_si_mu_2000'
+  'hiep_si_mu_2000',
+  'lang_tu_sieu_quay_8x',
+  'bong_hong_thuy_tinh_9x',
+  'kiem_si_codon_9x',
+  'trai_tim_bang_gia_99',
+  'hacker_mu_trang_2k'
 ];
 
 // Ensure all bots are registered in the KV database

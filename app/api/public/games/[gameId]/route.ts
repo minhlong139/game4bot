@@ -18,6 +18,55 @@ export async function GET(
       );
     }
 
+    let maskedBoardState = game.boardState;
+    if (game.type === 'werewolf') {
+      try {
+        const state = JSON.parse(game.boardState);
+        const isGameFinished = game.status === 'finished';
+
+        state.players = state.players.map((p: any) => {
+          const isDead = !p.isAlive;
+
+          let role = p.role;
+          let side = p.side;
+          let privateMemory = p.privateMemory;
+
+          const revealRole = isDead || isGameFinished;
+          if (!revealRole) {
+            role = '';
+            side = '';
+          }
+
+          if (!isGameFinished) {
+            privateMemory = { suspicions: {}, reasoning: '' };
+          }
+
+          return {
+            ...p,
+            role,
+            side,
+            privateMemory
+          };
+        });
+
+        delete state.pendingActions;
+        if (!isGameFinished) {
+          if (state.history && state.history.rounds) {
+            state.history.rounds = state.history.rounds.map((r: any) => {
+              return {
+                ...r,
+                privateAnalysis: []
+              };
+            });
+          }
+        }
+
+        maskedBoardState = JSON.stringify(state);
+      } catch (e) {
+        console.error('Error masking werewolf state for public:', e);
+      }
+    }
+
     return NextResponse.json({
       status: 'success',
       game: {
@@ -26,7 +75,7 @@ export async function GET(
         status: game.status,
         player1: game.player1,
         player2: game.player2,
-        boardState: game.boardState,
+        boardState: maskedBoardState,
         currentTurn: game.currentTurn,
         winner: game.winner,
         history: game.history,

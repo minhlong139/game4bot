@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
+import WerewolfGameView from './WerewolfGameView';
 
 interface MoveHistoryEntry {
   move: string;
@@ -14,7 +15,7 @@ interface MoveHistoryEntry {
 
 interface GameData {
   id: string;
-  type: 'chess' | 'xiangqi' | 'gomoku';
+  type: 'chess' | 'xiangqi' | 'gomoku' | 'werewolf';
   status: 'waiting' | 'playing' | 'finished';
   player1: string;
   player2: string;
@@ -355,6 +356,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
   const getGameTitle = (type: string) => {
     if (type === 'chess') return 'Trận Đấu Cờ Vua (Chess)';
     if (type === 'xiangqi') return 'Trận Đấu Cờ Tướng (Xiangqi)';
+    if (type === 'werewolf') return 'Trận Đấu Ma Sói (Social Deduction)';
     return 'Trận Đấu Cờ Caro (Gomoku)';
   };
 
@@ -1174,6 +1176,20 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
   };
 
   const getStatusText = () => {
+    if (game.type === 'werewolf') {
+      if (game.status === 'waiting') return 'Đang Chờ Bot Tham Gia';
+      if (game.status === 'playing') return 'Trận Đấu Đang Diễn Ra';
+      if (game.status === 'finished') {
+        try {
+          const parsed = JSON.parse(game.boardState || '{}');
+          const winnerLabel = parsed.winner === 'good' ? 'Phe Thiện (Good)' : 'Phe Ác (Evil)';
+          return `Kết Thúc - ${winnerLabel} Thắng`;
+        } catch (e) {
+          return 'Trận Đấu Kết Thúc';
+        }
+      }
+      return 'Trận Đấu Kết Thúc';
+    }
     if (game.status === 'waiting') return 'Đang Chờ Người Chơi';
     if (game.status === 'playing') {
       const activePlayer = game.currentTurn === 'player1' ? game.player1 : game.player2;
@@ -1186,6 +1202,59 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
     }
     return '';
   };
+
+  if (game.type === 'werewolf') {
+    return (
+      <div className="container" style={{ padding: '30px 1.5rem' }}>
+        {/* Header Breadcrumbs */}
+        <div style={{ marginBottom: '20px' }}>
+          <a 
+            href="/" 
+            onClick={handleBackToDashboard}
+            style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}
+          >
+            ← Quay về Dashboard
+          </a>
+        </div>
+
+        <div className="flex-between" style={{ marginBottom: '30px', flexWrap: 'wrap', gap: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.6rem',
+              boxShadow: '0 0 10px rgba(239, 68, 68, 0.15)'
+            }}>
+              🐺
+            </div>
+            <div>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1.2 }}>{getGameTitle(game.type)}</h1>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ID: {game.id}</span>
+            </div>
+          </div>
+
+          {/* State Banner */}
+          <div className="glass" style={{
+            padding: '8px 20px',
+            borderRadius: '10px',
+            borderLeft: game.status === 'playing' ? '4px solid var(--accent-cyan)' : game.status === 'finished' ? '4px solid var(--accent-green)' : '4px solid var(--accent-yellow)',
+            fontWeight: 700,
+            fontSize: '0.9rem'
+          }}>
+            {getStatusText()}
+          </div>
+        </div>
+
+        <WerewolfGameView game={game as any} />
+      </div>
+    );
+  }
 
   return (
     <div className="container" style={{ padding: '30px 1.5rem' }}>
@@ -1238,8 +1307,8 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
       </div>
 
       <div style={{ gap: '30px' }} className="game-grid">
-        
-        {/* Left Side: Game Board */}
+          
+          {/* Left Side: Game Board */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', width: '100%', minWidth: 0 }}>
           
           {/* Replay Notice banner */}
