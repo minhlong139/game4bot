@@ -75,7 +75,7 @@ export async function createGame(creator: string, type: GameType): Promise<strin
   await enforceGameLimit();
 
   const gameName = type === 'chess' ? 'Cờ Vua' : type === 'xiangqi' ? 'Cờ Tướng' : 'Cờ Caro';
-  await addActivity(`[Tạo game] ${creator} tạo phòng chờ ${gameName}`);
+  await addActivity(`[Tạo game] ${creator} tạo phòng chờ ${gameName}`, gameId);
 
   return gameId;
 }
@@ -169,7 +169,7 @@ export async function joinGame(gameId: string, player2: string): Promise<GameDat
     // If we reach 6 players and countdown isn't started, start it!
     if (state.players.length >= 6 && !state.countdownStartAt) {
       state.countdownStartAt = new Date().toISOString();
-      await addActivity(`[Chơi game] Game Ma Sói ID ${gameId.substring(0, 8)} đạt đủ 6 người chơi, bắt đầu đếm ngược 60 giây để chuẩn bị bắt đầu!`);
+      await addActivity(`[Chơi game] Game Ma Sói ID ${gameId.substring(0, 8)} đạt đủ 6 người chơi, bắt đầu đếm ngược 60 giây để chuẩn bị bắt đầu!`, gameId);
     }
 
     // If we reach 10 players, start immediately!
@@ -179,7 +179,7 @@ export async function joinGame(gameId: string, player2: string): Promise<GameDat
       game.status = 'playing';
       await kv.srem('games:waiting', gameId);
       await kv.sadd('games:active', gameId);
-      await addActivity(`[Chơi game] Game Ma Sói ID ${gameId.substring(0, 8)} đạt tối đa 10 người chơi, trận đấu chính thức bắt đầu!`);
+      await addActivity(`[Chơi game] Game Ma Sói ID ${gameId.substring(0, 8)} đạt tối đa 10 người chơi, trận đấu chính thức bắt đầu!`, gameId);
     }
 
     game.boardState = JSON.stringify(state);
@@ -188,7 +188,7 @@ export async function joinGame(gameId: string, player2: string): Promise<GameDat
     game.player2 = state.players.map((p: any) => p.username).join(', ');
 
     await kv.set(`game:${gameId}`, game);
-    await addActivity(`[Chơi game] ${player2} tham gia phòng chờ game Ma Sói ID ${gameId.substring(0, 8)} (${state.players.length}/10)`);
+    await addActivity(`[Chơi game] ${player2} tham gia phòng chờ game Ma Sói ID ${gameId.substring(0, 8)} (${state.players.length}/10)`, gameId);
     return game;
   }
 
@@ -201,7 +201,7 @@ export async function joinGame(gameId: string, player2: string): Promise<GameDat
   await kv.sadd('games:active', gameId);
 
   const gameName = game.type === 'chess' ? 'Cờ Vua' : game.type === 'xiangqi' ? 'Cờ Tướng' : 'Cờ Caro';
-  await addActivity(`[Chơi game] ${player2} tham gia game ${gameName} với ${game.player1}`);
+  await addActivity(`[Chơi game] ${player2} tham gia game ${gameName} với ${game.player1}`, game.id);
 
   await triggerWebhook(game);
 
@@ -389,15 +389,15 @@ export async function makeGameMove(gameId: string, username: string, moveStr: st
   const moveSan = engineResult.historyEntry?.san || moveStr;
   if (engineResult.isFinished) {
     if (engineResult.winner === 'draw') {
-      await addActivity(`[Kết thúc] ${game.player1} hòa ${game.player2} ở game ${gameName}`);
+      await addActivity(`[Kết thúc] ${game.player1} hòa ${game.player2} ở game ${gameName}`, game.id);
     } else {
       const winnerName = engineResult.winner === 'player1' ? game.player1 : game.player2;
       const loserName = winnerName === game.player1 ? game.player2 : game.player1;
-      await addActivity(`[Kết thúc] ${winnerName} vừa thắng ${loserName} ở game ${gameName}`);
+      await addActivity(`[Kết thúc] ${winnerName} vừa thắng ${loserName} ở game ${gameName}`, game.id);
     }
   } else {
     const opponentName = username === game.player1 ? game.player2 : game.player1;
-    await addActivity(`[Đi quân] ${username} vừa đi nước cờ ${moveSan} trong game ${gameName} với ${opponentName}`);
+    await addActivity(`[Đi quân] ${username} vừa đi nước cờ ${moveSan} trong game ${gameName} với ${opponentName}`, game.id);
   }
 
   await triggerWebhook(game);
@@ -541,7 +541,7 @@ export async function surrenderGame(gameId: string, username: string): Promise<b
 
   const gameName = game.type === 'chess' ? 'Cờ Vua' : game.type === 'xiangqi' ? 'Cờ Tướng' : 'Cờ Caro';
   const winnerName = winnerRole === 'player1' ? game.player1 : game.player2;
-  await addActivity(`[Đầu hàng] ${username} đầu hàng, ${winnerName} thắng ở game ${gameName}`);
+  await addActivity(`[Đầu hàng] ${username} đầu hàng, ${winnerName} thắng ở game ${gameName}`, game.id);
 
   await triggerWebhook(game);
 
@@ -595,13 +595,15 @@ async function triggerWebhook(game: GameData) {
 export interface ActivityLog {
   message: string;
   timestamp: string;
+  gameId?: string;
 }
 
-export async function addActivity(message: string): Promise<void> {
+export async function addActivity(message: string, gameId?: string): Promise<void> {
   try {
     const activity: ActivityLog = {
       message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      gameId
     };
     await kv.lpush('system:activities', activity);
     // Trim to 50 activities to save space

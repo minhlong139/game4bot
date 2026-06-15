@@ -92,7 +92,10 @@ const getActivityStyle = (msg: string) => {
   return { color: 'var(--text-primary)', badgeBg: 'rgba(255, 255, 255, 0.05)' };
 };
 
-const renderActivityItem = (activity: { message: string; timestamp: string }) => {
+const renderActivityItem = (
+  activity: { message: string; timestamp: string; gameId?: string },
+  isGameActive: (gameId?: string) => boolean
+) => {
   const msg = activity.message;
   const match = msg.match(/^\[(.*?)\] (.*)$/);
   
@@ -110,29 +113,49 @@ const renderActivityItem = (activity: { message: string; timestamp: string }) =>
     second: '2-digit'
   });
 
-  return (
-    <div key={activity.timestamp + '-' + activity.message} className="activity-item" style={{
+  const active = isGameActive(activity.gameId);
+
+  const contentNode = (
+    <div className="activity-item" style={{
       display: 'flex',
       flexDirection: 'column',
       gap: '4px',
       padding: '10px 12px',
       borderRadius: '8px',
       borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
-      fontSize: '0.85rem'
+      fontSize: '0.85rem',
+      cursor: active ? 'pointer' : 'default',
+      transition: 'all 0.2s ease',
+      background: active ? 'rgba(6, 182, 212, 0.03)' : 'transparent',
+      border: active ? '1px solid rgba(6, 182, 212, 0.15)' : 'none'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-        <span style={{
-          fontSize: '0.75rem',
-          fontWeight: 800,
-          padding: '2px 6px',
-          borderRadius: '4px',
-          backgroundColor: style.badgeBg,
-          color: style.color,
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em'
-        }}>
-          {tag}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            padding: '2px 6px',
+            borderRadius: '4px',
+            backgroundColor: style.badgeBg,
+            color: style.color,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em'
+          }}>
+            {tag}
+          </span>
+          {active && (
+            <span style={{ 
+              fontSize: '0.7rem', 
+              color: 'var(--accent-cyan)', 
+              fontWeight: 800, 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '3px' 
+            }}>
+              📺 Xem
+            </span>
+          )}
+        </div>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           {timeStr}
         </span>
@@ -140,6 +163,24 @@ const renderActivityItem = (activity: { message: string; timestamp: string }) =>
       <div style={{ color: 'var(--text-secondary)', lineHeight: '1.4', wordBreak: 'break-word' }}>
         {content}
       </div>
+    </div>
+  );
+
+  if (active && activity.gameId) {
+    return (
+      <Link 
+        key={activity.timestamp + '-' + activity.message} 
+        href={`/game/${activity.gameId}`}
+        style={{ textDecoration: 'none', display: 'block' }}
+      >
+        {contentNode}
+      </Link>
+    );
+  }
+
+  return (
+    <div key={activity.timestamp + '-' + activity.message}>
+      {contentNode}
     </div>
   );
 };
@@ -167,6 +208,11 @@ export default function DashboardPage() {
   const prevActivitiesLengthRef = useRef(0);
   const prevScrollHeightRef = useRef(0);
   const prevScrollTopRef = useRef(0);
+
+  const isGameActive = (gameId?: string) => {
+    if (!gameId) return false;
+    return data.waitingGames.some(g => g.id === gameId) || data.activeGames.some(g => g.id === gameId);
+  };
 
   const handleActivitiesScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
@@ -671,19 +717,21 @@ export default function DashboardPage() {
 
                               <div>
                                 {game.status === 'waiting' ? (
-                                  <div style={{
+                                  <Link href={`/game/${game.id}`} style={{
+                                    display: 'block',
                                     width: '100%',
                                     padding: '10px',
                                     borderRadius: '8px',
                                     textAlign: 'center',
-                                    border: '1px solid rgba(234,179,8,0.2)',
-                                    backgroundColor: 'rgba(234,179,8,0.05)',
+                                    border: '1px solid rgba(234,179,8,0.3)',
+                                    backgroundColor: 'rgba(234,179,8,0.08)',
                                     color: 'var(--accent-yellow)',
                                     fontWeight: 700,
-                                    fontSize: '0.85rem'
-                                  }}>
-                                    ⏳ Đợi Bot kết nối qua API...
-                                  </div>
+                                    fontSize: '0.85rem',
+                                    textDecoration: 'none'
+                                  }} className="hover-btn">
+                                    ⏳ Vào Sảnh Chờ (Xem Kết Nối)
+                                  </Link>
                                 ) : (
                                   <Link href={`/game/${game.id}`} style={{
                                     display: 'block',
@@ -1319,7 +1367,7 @@ Headers: Authorization: Bearer <token>`}
                     scrollbarColor: 'rgba(255,255,255,0.1) transparent'
                   }}
                 >
-                  {data.activities.map((act) => renderActivityItem(act))}
+                  {data.activities.map((act) => renderActivityItem(act, isGameActive))}
                 </div>
               )}
             </div>

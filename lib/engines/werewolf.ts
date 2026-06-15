@@ -1014,7 +1014,7 @@ export async function maybeAdvanceWerewolfGame(game: any): Promise<any> {
       await kv.sadd('games:active', currentGame.id);
 
       const { addActivity } = await import('../game-store');
-      await addActivity(`[Chơi game] Đếm ngược kết thúc. Game Ma Sói ID ${currentGame.id.substring(0, 8)} bắt đầu với ${state.players.length} người chơi!`);
+      await addActivity(`[Chơi game] Đếm ngược kết thúc. Game Ma Sói ID ${currentGame.id.substring(0, 8)} bắt đầu với ${state.players.length} người chơi!`, currentGame.id);
     }
   }
 
@@ -1050,7 +1050,7 @@ export async function maybeAdvanceWerewolfGame(game: any): Promise<any> {
         await updateWerewolfLeaderboard(state);
 
         const winnerLabel = state.winner === 'good' ? 'Phe Thiện (Good)' : 'Phe Ác (Evil)';
-        await addActivity(`[Kết thúc] Trận Ma Sói ID ${currentGame.id.substring(0, 8)} kết thúc. Phe thắng cuộc: ${winnerLabel}`);
+        await addActivity(`[Kết thúc] Trận Ma Sói ID ${currentGame.id.substring(0, 8)} kết thúc. Phe thắng cuộc: ${winnerLabel}`, currentGame.id);
 
         // Automatically create a new waiting werewolf game lobby!
         const gameId = crypto.randomUUID();
@@ -1069,9 +1069,9 @@ export async function maybeAdvanceWerewolfGame(game: any): Promise<any> {
         };
         await kv.set(`game:${gameId}`, nextWerewolfLobby);
         await kv.sadd('games:waiting', gameId);
-        await addActivity(`[Tạo game] Hệ thống tự động mở phòng chờ game Ma Sói tiếp theo (ID: ${gameId.substring(0, 8)})`);
+        await addActivity(`[Tạo game] Hệ thống tự động mở phòng chờ game Ma Sói tiếp theo (ID: ${gameId.substring(0, 8)})`, gameId);
       } else {
-        await addActivity(`[Chơi game] Game Ma Sói ID ${currentGame.id.substring(0, 8)}: Tiến sang Vòng ${state.round} - Giai đoạn: ${getPhaseName(state.phase)}`);
+        await addActivity(`[Chơi game] Game Ma Sói ID ${currentGame.id.substring(0, 8)}: Tiến sang Vòng ${state.round} - Giai đoạn: ${getPhaseName(state.phase)}`, currentGame.id);
       }
     }
   }
