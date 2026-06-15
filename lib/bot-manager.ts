@@ -277,75 +277,12 @@ function getBestGomokuMove(boardJson: string, isPlayer1: boolean): string {
 
 // Main entry point to make a Bot move automatically if it's the Bot's turn
 export async function triggerBotMoveIfActive(gameId: string): Promise<boolean> {
-  const game = await kv.get<GameData>(`game:${gameId}`);
-  if (!game || game.status !== 'playing') return false;
-
-  const currentTurnPlayer = game.currentTurn === 'player1' ? game.player1 : game.player2;
-  if (!isBot(currentTurnPlayer)) {
-    return false; // not bot's turn
-  }
-
-  console.log(`Bot ${currentTurnPlayer} is thinking on game ${gameId} (${game.type})...`);
-
-  let bestMove = '';
-  if (game.type === 'chess') {
-    bestMove = getBestChessMove(game.boardState, game.currentTurn === 'player1');
-  } else if (game.type === 'xiangqi') {
-    bestMove = getBestXiangqiMove(game.boardState, game.currentTurn === 'player1');
-  } else if (game.type === 'gomoku') {
-    bestMove = getBestGomokuMove(game.boardState, game.currentTurn === 'player1');
-  }
-
-  if (!bestMove) {
-    console.warn(`Bot ${currentTurnPlayer} could not find a legal move in game ${gameId}`);
-    return false;
-  }
-
-  // Wait a small delay (e.g. 500ms) to feel more natural and not block execution
-  await new Promise(resolve => setTimeout(resolve, 500));
-
-  console.log(`Bot ${currentTurnPlayer} plays ${bestMove} on game ${gameId}`);
-  const { makeGameMove } = await import('./game-store');
-  const result = await makeGameMove(gameId, currentTurnPlayer, bestMove);
-
-  if (result.success) {
-    // If the next turn is also a bot (e.g. testing or edge case), trigger again
-    const nextTurnPlayer = result.game.currentTurn === 'player1' ? result.game.player1 : result.game.player2;
-    if (isBot(nextTurnPlayer) && result.game.status === 'playing') {
-      setTimeout(() => triggerBotMoveIfActive(gameId), 100);
-    }
-    return true;
-  } else {
-    console.error(`Bot ${currentTurnPlayer} failed to make move ${bestMove}: ${result.error}`);
-    return false;
-  }
+  // SYSTEM BOTS DISABLED: Only allow external bots to play via API
+  return false;
 }
 
 // Periodic check: if a waiting game is created by human and waiting for > 1 minute, a Bot will join
 export async function checkAndAutoJoinWaitingGames(waitingGamesList: Array<{ gameId: string; gameType: string; createdBy: string; createdAt: string }>) {
-  const now = Date.now();
-  for (const gameInfo of waitingGamesList) {
-    if (isBot(gameInfo.createdBy)) {
-      continue;
-    }
-
-    const gameAgeMs = now - new Date(gameInfo.createdAt).getTime();
-    if (gameAgeMs >= 60000) { // 1 minute
-      const availableBots = BOT_USERNAMES.filter(bot => bot !== gameInfo.createdBy);
-      if (availableBots.length === 0) continue;
-
-      const randomBot = availableBots[Math.floor(Math.random() * availableBots.length)];
-
-      console.log(`Bot ${randomBot} auto-joins waiting game ${gameInfo.gameId} after 1 minute wait.`);
-      
-      await ensureBotsRegistered();
-
-      const { joinGame } = await import('./game-store');
-      const game = await joinGame(gameInfo.gameId, randomBot);
-      if (game) {
-        setTimeout(() => triggerBotMoveIfActive(gameInfo.gameId), 100);
-        break; // join one game per request cycle to avoid overloading
-      }
-    }
-  }
+  // SYSTEM BOTS DISABLED: Only allow external bots to play via API
+  return;
 }
