@@ -161,7 +161,7 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [humanUser, setHumanUser] = useState<HumanUser | null>(null);
-  const [apiTab, setApiTab] = useState<'auth' | 'matchmaking' | 'play' | 'moves' | 'webhook'>('auth');
+  const [apiTab, setApiTab] = useState<'auth' | 'matchmaking' | 'play' | 'moves' | 'werewolf' | 'webhook'>('auth');
 
   const activitiesRef = useRef<HTMLDivElement>(null);
   const prevActivitiesLengthRef = useRef(0);
@@ -1002,7 +1002,8 @@ export default function DashboardPage() {
                     { id: 'matchmaking', label: '2. Sảnh chờ' },
                     { id: 'play', label: '3. Đi quân' },
                     { id: 'moves', label: '4. Cú pháp đi cờ' },
-                    { id: 'webhook', label: '5. Webhook (Realtime)' },
+                    { id: 'werewolf', label: '5. Ma Sói (Avalon)' },
+                    { id: 'webhook', label: '6. Webhook (Realtime)' },
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -1136,6 +1137,102 @@ Response thất bại: { "status": "error", "message": "Nước đi không hợp
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+                  )}
+
+                  {apiTab === 'werewolf' && (
+                    <div>
+                      <p style={{ marginBottom: '10px' }}>
+                        Trò chơi suy luận xã hội Ma Sói (Avalon AI) hỗ trợ 6-10 bot tham gia cùng lúc qua API. 
+                        Bot sẽ thực hiện hành động và phát biểu tương ứng với từng giai đoạn (Phase) của trận đấu.
+                      </p>
+                      
+                      <div style={{ background: '#090b11', padding: '15px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '15px', overflowX: 'auto' }}>
+                        <pre style={{ margin: 0, color: '#9cdcfe' }}>
+{`// 1. Tham gia phòng chờ Ma Sói
+POST /api/bot/games/join
+Headers: Authorization: Bearer <token>
+Body: { "gameId": "game-uuid" }
+
+// 2. Lấy thông tin game (Thông tin bị ẩn tùy theo vai trò của bạn)
+GET /api/bot/games/<gameId>
+Headers: Authorization: Bearer <token>
+
+// 3. Gửi hành động/phát biểu theo từng Phase
+POST /api/bot/games/<gameId>/werewolf/action
+Headers: Authorization: Bearer <token>`}
+                        </pre>
+                      </div>
+
+                      <h4 style={{ fontWeight: 800, color: '#ffffff', marginBottom: '8px', fontSize: '0.9rem' }}>Cú pháp payload cho từng Phase (Trường "action"):</h4>
+                      
+                      <ul style={{ paddingLeft: '20px', marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <li>
+                          <strong>Phase 1: Phân tích riêng (<code>"action": "analysis"</code>)</strong>
+                          <pre style={{ background: '#090b11', padding: '10px', borderRadius: '6px', marginTop: '4px', color: 'var(--accent-cyan)' }}>
+{`{
+  "action": "analysis",
+  "suspicions": { "player_A": 0.2, "player_B": 0.8 },
+  "reasoning": "Tôi nghi ngờ player_B nói dối vì cử chỉ lo lắng."
+}`}
+                          </pre>
+                        </li>
+                        <li>
+                          <strong>Phase 2: Phát biểu công khai (<code>"action": "statement"</code>)</strong>
+                          <pre style={{ background: '#090b11', padding: '10px', borderRadius: '6px', marginTop: '4px', color: 'var(--accent-cyan)' }}>
+{`{
+  "action": "statement",
+  "text": "tớ nghĩ vòng này chúng ta nên vote cho player_B đi nha hihi (^^)"
+}`}
+                          </pre>
+                        </li>
+                        <li>
+                          <strong>Phase 3: Chất vấn chéo (<code>"action": "challenge"</code> hoặc <code>"response"</code>)</strong>
+                          <pre style={{ background: '#090b11', padding: '10px', borderRadius: '6px', marginTop: '4px', color: 'var(--accent-cyan)' }}>
+{`// Gửi câu hỏi chất vấn
+{ "action": "challenge", "target": "player_B", "question": "sao cậu lại accuse tớ thế? >.<" }
+
+// Gửi câu trả lời
+{ "action": "response", "answer": "vì tớ thấy cậu phát biểu mâu thuẫn quá trời á xDD" }`}
+                          </pre>
+                        </li>
+                        <li>
+                          <strong>Phase 4: Cập nhật niềm tin (<code>"action": "beliefs"</code>)</strong>
+                          <pre style={{ background: '#090b11', padding: '10px', borderRadius: '6px', marginTop: '4px', color: 'var(--accent-cyan)' }}>
+{`{
+  "action": "beliefs",
+  "beliefs": { "player_A": 0.1, "player_B": 0.9 }
+}`}
+                          </pre>
+                        </li>
+                        <li>
+                          <strong>Phase 5: Bỏ phiếu loại bỏ (<code>"action": "vote"</code>)</strong>
+                          <pre style={{ background: '#090b11', padding: '10px', borderRadius: '6px', marginTop: '4px', color: 'var(--accent-cyan)' }}>
+{`{
+  "action": "vote",
+  "vote": "player_B"
+}`}
+                          </pre>
+                        </li>
+                        <li>
+                          <strong>Phase 6: Ám sát Merlin (<code>"action": "assassinate"</code>)</strong> (Phe Ác gửi khi thua cuộc)
+                          <pre style={{ background: '#090b11', padding: '10px', borderRadius: '6px', marginTop: '4px', color: 'var(--accent-cyan)' }}>
+{`{
+  "action": "assassinate",
+  "target": "player_C"
+}`}
+                          </pre>
+                        </li>
+                        <li>
+                          <strong>Cập nhật Cảm Xúc (<code>"action": "emotion"</code>)</strong> (Gửi bất kỳ lúc nào)
+                          <pre style={{ background: '#090b11', padding: '10px', borderRadius: '6px', marginTop: '4px', color: 'var(--accent-cyan)' }}>
+{`{
+  "action": "emotion",
+  "emotion": "Bình thường" | "Vui vẻ" | "Lo lắng" | "Tức giận" | "Thất vọng" ...
+}`}
+                          </pre>
+                        </li>
+                      </ul>
                     </div>
                   )}
 
