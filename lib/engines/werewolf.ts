@@ -379,6 +379,62 @@ export function advanceWerewolfPhase(state: WerewolfState): WerewolfState {
   const currentRound = newState.round;
   const currentPhase = newState.phase;
 
+  if (currentPhase === 6) {
+    newState.logs.push(`=== Vòng cuối: Assassin Ám sát Merlin ===`);
+
+    const assassin = newState.players.find(x => x.role === 'Assassin');
+    if (!assassin) {
+      newState.status = 'finished';
+      newState.winner = 'good';
+      calculateFinalScores(newState);
+      return newState;
+    }
+
+    const aliveGoodPlayers = newState.players.filter(x => x.isAlive && x.side === 'good');
+    
+    // Check if custom assassination guess exists in pendingActions
+    const customAction = (newState as any).pendingActions?.[assassin.username];
+    let guessedMerlin = '';
+
+    if (customAction && customAction.action === 'assassinate') {
+      guessedMerlin = customAction.target;
+    } else {
+      // Assassin guesses Merlin based on their suspicion probability matrix
+      const sortedGood = aliveGoodPlayers.map(p => ({
+        username: p.username,
+        prob: assassin.privateMemory.suspicions[p.username] || 0
+      })).sort((a, b) => b.prob - a.prob);
+
+      if (sortedGood.length > 0) {
+        guessedMerlin = sortedGood[0].username;
+      } else {
+        guessedMerlin = aliveGoodPlayers[0]?.username || '';
+      }
+    }
+
+    if (guessedMerlin) {
+      const targetPlayer = newState.players.find(x => x.username === guessedMerlin);
+      newState.logs.push(`[Ám sát] Assassin (${assassin.username}) chỉ định ${guessedMerlin} là Merlin.`);
+
+      if (targetPlayer?.role === 'Merlin') {
+        newState.logs.push(`[Kết thúc] Chỉ định chính xác! ${guessedMerlin} đúng là Merlin. Phe Ác (Evil) lật ngược tình thế và chiến thắng!`);
+        newState.status = 'finished';
+        newState.winner = 'evil';
+      } else {
+        newState.logs.push(`[Kết thúc] Chỉ định sai! ${guessedMerlin} là ${targetPlayer?.role || 'Dân làng'}, không phải Merlin. Phe Thiện (Good) chiến thắng chung cuộc!`);
+        newState.status = 'finished';
+        newState.winner = 'good';
+      }
+    } else {
+      newState.logs.push(`[Kết thúc] Assassin không chỉ định ai. Phe Thiện (Good) chiến thắng chung cuộc!`);
+      newState.status = 'finished';
+      newState.winner = 'good';
+    }
+
+    calculateFinalScores(newState);
+    return newState;
+  }
+
   // Enforce new phase assignment
   let nextPhase = currentPhase + 1;
   if (nextPhase > 5) {
@@ -714,7 +770,11 @@ export function advanceWerewolfPhase(state: WerewolfState): WerewolfState {
         if (!voteTarget) {
           // Fallback random
           const targets = alivePlayers.filter(x => x.username !== p.username);
-          voteTarget = targets[Math.floor(Math.random() * targets.length)].username;
+          if (targets.length > 0) {
+            voteTarget = targets[Math.floor(Math.random() * targets.length)].username;
+          } else {
+            voteTarget = p.username;
+          }
         }
       }
 
@@ -778,49 +838,6 @@ export function advanceWerewolfPhase(state: WerewolfState): WerewolfState {
       newState.logs.push(`[Kết thúc] Đã hết 5 vòng đấu mà phe Thiện chưa loại được phe Ác. Phe Ác thắng cuộc!`);
       newState.status = 'finished';
       newState.winner = 'evil';
-    }
-  }
-
-  // ----------------------------------------------------
-  // PHASE 6: Assassin Final Guess (Ám sát Merlin)
-  // ----------------------------------------------------
-  else if (nextPhase === 6) {
-    newState.logs.push(`=== Vòng cuối: Assassin Ám sát Merlin ===`);
-
-    const assassin = newState.players.find(x => x.role === 'Assassin')!;
-    const aliveGoodPlayers = newState.players.filter(x => x.isAlive && x.side === 'good');
-    
-    // Check if custom assassination guess exists in pendingActions
-    const customAction = (newState as any).pendingActions?.[assassin.username];
-    let guessedMerlin = '';
-
-    if (customAction && customAction.action === 'assassinate') {
-      guessedMerlin = customAction.target;
-    } else {
-      // Assassin guesses Merlin based on their suspicion probability matrix
-      const sortedGood = aliveGoodPlayers.map(p => ({
-        username: p.username,
-        prob: assassin.privateMemory.suspicions[p.username] || 0
-      })).sort((a, b) => b.prob - a.prob);
-
-      if (sortedGood.length > 0) {
-        guessedMerlin = sortedGood[0].username;
-      } else {
-        guessedMerlin = aliveGoodPlayers[0].username;
-      }
-    }
-
-    const targetPlayer = newState.players.find(x => x.username === guessedMerlin)!;
-    newState.logs.push(`[Ám sát] Assassin (${assassin.username}) chỉ định ${guessedMerlin} là Merlin.`);
-
-    if (targetPlayer.role === 'Merlin') {
-      newState.logs.push(`[Kết thúc] Chỉ định chính xác! ${guessedMerlin} đúng là Merlin. Phe Ác (Evil) lật ngược tình thế và chiến thắng!`);
-      newState.status = 'finished';
-      newState.winner = 'evil';
-    } else {
-      newState.logs.push(`[Kết thúc] Chỉ định sai! ${guessedMerlin} là ${targetPlayer.role}, không phải Merlin. Phe Thiện (Good) chiến thắng chung cuộc!`);
-      newState.status = 'finished';
-      newState.winner = 'good';
     }
   }
 

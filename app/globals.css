@@ -313,3 +313,50 @@ a {
   }
 }
 
+/* Werewolf Detail Layout Upgrades */
+.werewolf-detail-top-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 992px) {
+  .werewolf-detail-top-row {
+    grid-template-columns: 3fr 1fr;
+  }
+}
+
+.werewolf-bottom-stats-row {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (min-width: 768px) {
+  .werewolf-bottom-stats-row {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .werewolf-bottom-stats-col-left {
+    flex: 1;
+    min-width: 280px;
+  }
+  .werewolf-bottom-stats-col-right {
+    flex: 1.5;
+    padding-left: 20px;
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+  }
+}
+
+.werewolf-guide-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+}
+
+@media (min-width: 992px) {
+  .werewolf-guide-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+

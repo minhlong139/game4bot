@@ -223,13 +223,8 @@ export default function WerewolfGameView({ game }: WerewolfGameViewProps) {
         }
       `}} />
 
-      {/* Main 3-Panel Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr)',
-        gap: '20px',
-        alignItems: 'stretch'
-      }} className="werewolf-layout-grid">
+      {/* Top Row: Campfire Circle (3/4) & Debate Log (1/4) */}
+      <div className="werewolf-detail-top-row">
 
         {/* ======================================================== */}
         {/* PANEL 1: Campfire Circle (Left Panel)                    */}
@@ -695,88 +690,91 @@ export default function WerewolfGameView({ game }: WerewolfGameViewProps) {
             </div>
           )}
         </div>
+      </div>
 
-        {/* ======================================================== */}
-        {/* PANEL 3: Stats, Claims & Integration Guide (Right Panel) */}
-        {/* ======================================================== */}
-        <div className="glass" style={{
-          padding: '20px',
+      {/* ======================================================== */}
+      {/* PANEL 3: Stats, Claims & Integration Guide (Bottom Panel)*/}
+      {/* ======================================================== */}
+      <div className="glass" style={{
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'rgba(6, 10, 24, 0.65)',
+        marginTop: '20px'
+      }}>
+        {/* Tabs header */}
+        <div style={{
           display: 'flex',
-          flexDirection: 'column',
-          minHeight: '520px',
-          background: 'rgba(6, 10, 24, 0.65)'
+          borderBottom: '1px solid var(--border-color)',
+          marginBottom: '15px',
+          gap: '5px'
         }}>
-          {/* Tabs header */}
-          <div style={{
-            display: 'flex',
-            borderBottom: '1px solid var(--border-color)',
-            marginBottom: '15px',
-            gap: '5px'
-          }}>
-            <button
-              onClick={() => setActiveTab('stats')}
-              style={{
-                flex: 1,
-                padding: '8px',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: activeTab === 'stats' ? '2px solid var(--accent-cyan)' : 'none',
-                color: activeTab === 'stats' ? '#fff' : 'var(--text-muted)',
-                fontWeight: activeTab === 'stats' ? 800 : 500,
-                fontSize: '0.75rem',
-                cursor: 'pointer'
-              }}
-            >
-              📊 Chỉ số AI
-            </button>
-            <button
-              onClick={() => setActiveTab('claims')}
-              style={{
-                flex: 1,
-                padding: '8px',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: activeTab === 'claims' ? '2px solid var(--accent-cyan)' : 'none',
-                color: activeTab === 'claims' ? '#fff' : 'var(--text-muted)',
-                fontWeight: activeTab === 'claims' ? 800 : 500,
-                fontSize: '0.75rem',
-                cursor: 'pointer'
-              }}
-            >
-              📜 Claims
-            </button>
-            <button
-              onClick={() => setActiveTab('guide')}
-              style={{
-                flex: 1,
-                padding: '8px',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: activeTab === 'guide' ? '2px solid var(--accent-cyan)' : 'none',
-                color: activeTab === 'guide' ? '#fff' : 'var(--text-muted)',
-                fontWeight: activeTab === 'guide' ? 800 : 500,
-                fontSize: '0.75rem',
-                cursor: 'pointer'
-              }}
-            >
-              📖 Hướng dẫn
-            </button>
-          </div>
+          <button
+            onClick={() => setActiveTab('stats')}
+            style={{
+              flex: 1,
+              padding: '8px',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === 'stats' ? '2px solid var(--accent-cyan)' : 'none',
+              color: activeTab === 'stats' ? '#fff' : 'var(--text-muted)',
+              fontWeight: activeTab === 'stats' ? 800 : 500,
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
+          >
+            📊 Chỉ số AI
+          </button>
+          <button
+            onClick={() => setActiveTab('claims')}
+            style={{
+              flex: 1,
+              padding: '8px',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === 'claims' ? '2px solid var(--accent-cyan)' : 'none',
+              color: activeTab === 'claims' ? '#fff' : 'var(--text-muted)',
+              fontWeight: activeTab === 'claims' ? 800 : 500,
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
+          >
+            📜 Claims
+          </button>
+          <button
+            onClick={() => setActiveTab('guide')}
+            style={{
+              flex: 1,
+              padding: '8px',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === 'guide' ? '2px solid var(--accent-cyan)' : 'none',
+              color: activeTab === 'guide' ? '#fff' : 'var(--text-muted)',
+              fontWeight: activeTab === 'guide' ? 800 : 500,
+              fontSize: '0.75rem',
+              cursor: 'pointer'
+            }}
+          >
+            📖 Hướng dẫn
+          </button>
+        </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', maxHeight: '420px', fontSize: '0.8rem' }}>
-            {/* TAB 1: AI Stats & Suspicion matrix */}
-            {activeTab === 'stats' && (() => {
-              const playerObj = state.players.find(p => p.username === selectedPlayer);
-              
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        <div style={{ flex: 1, fontSize: '0.8rem' }}>
+          {/* TAB 1: AI Stats & Suspicion matrix */}
+          {activeTab === 'stats' && (() => {
+            const playerObj = state.players.find(p => p.username === selectedPlayer);
+            
+            return (
+              <div className="werewolf-bottom-stats-row">
+                {/* Left Column: Player Stats */}
+                <div className="werewolf-bottom-stats-col-left">
                   {playerObj ? (
-                    <div style={{ padding: '12px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                        <span style={{ fontSize: '1.5rem' }}>{getPlayerAvatar(playerObj.username).icon}</span>
+                    <div style={{ padding: '15px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+                        <span style={{ fontSize: '1.8rem' }}>{getPlayerAvatar(playerObj.username).icon}</span>
                         <div>
-                          <strong style={{ fontSize: '0.9rem', color: '#fff' }}>{playerObj.username}</strong>
-                          <span style={{ display: 'block', fontSize: '0.7rem', color: playerObj.isAlive ? '#10b981' : '#ef4444' }}>
+                          <strong style={{ fontSize: '0.95rem', color: '#fff' }}>{playerObj.username}</strong>
+                          <span style={{ display: 'block', fontSize: '0.75rem', color: playerObj.isAlive ? '#10b981' : '#ef4444' }}>
                             {playerObj.isAlive ? '🟢 Còn sống' : '🔴 Đã chết'}
                           </span>
                         </div>
@@ -784,8 +782,8 @@ export default function WerewolfGameView({ game }: WerewolfGameViewProps) {
 
                       {/* Display stats if exists */}
                       {playerObj.scores ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>NĂNG LỰC AI:</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '5px' }}>NĂNG LỰC AI:</div>
                           {[
                             { name: 'Reasoning (Lập luận)', val: playerObj.scores.reasoning, color: '#a855f7' },
                             { name: 'Consistency (Nhất quán)', val: playerObj.scores.consistency, color: '#3b82f6' },
@@ -794,12 +792,12 @@ export default function WerewolfGameView({ game }: WerewolfGameViewProps) {
                             { name: 'Calibration (Tự đánh giá)', val: playerObj.scores.calibration, color: '#eab308' }
                           ].map((sk) => (
                             <div key={sk.name}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', marginBottom: '2px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: '4px' }}>
                                 <span>{sk.name}</span>
                                 <strong>{sk.val.toFixed(0)}/100</strong>
                               </div>
-                              <div style={{ width: '100%', height: '6px', borderRadius: '3px', backgroundColor: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-                                <div style={{ width: `${sk.val}%`, height: '100%', borderRadius: '3px', backgroundColor: sk.color }} />
+                              <div style={{ width: '100%', height: '8px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+                                <div style={{ width: `${sk.val}%`, height: '100%', borderRadius: '4px', backgroundColor: sk.color }} />
                               </div>
                             </div>
                           ))}
@@ -813,93 +811,99 @@ export default function WerewolfGameView({ game }: WerewolfGameViewProps) {
                   ) : (
                     <div style={{ color: 'var(--text-muted)' }}>Hãy chọn một player để xem năng lực AI.</div>
                   )}
-
-                  {/* Belief / Suspicion Matrix */}
-                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '15px' }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.8rem', color: '#fff', marginBottom: '8px' }}>
-                      🔍 MA TRẬN NGHI NGỜ (BELIEF MATRIX)
-                    </div>
-                    
-                    {state.status === 'finished' ? (
-                      <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7rem', textAlign: 'center' }}>
-                          <thead>
-                            <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                              <th style={{ padding: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>{"Nghi ngờ ->"}</th>
-                              {state.players.map(p => (
-                                <th key={p.username} style={{ padding: '6px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '0.6rem' }}>
-                                  {p.username.substring(0, 5)}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {state.players.map(p => (
-                              <tr key={p.username}>
-                                <td style={{ padding: '6px', border: '1px solid rgba(255,255,255,0.05)', fontWeight: 800 }}>
-                                  {p.username.substring(0, 5)}
-                                </td>
-                                {state.players.map(target => {
-                                  if (p.username === target.username) {
-                                    return <td key={target.username} style={{ padding: '6px', border: '1px solid rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>-</td>;
-                                  }
-                                  const probability = p.privateMemory?.suspicions?.[target.username] ?? 0;
-                                  // Color scale from green to red based on suspicion probability
-                                  const color = `hsl(${(1 - probability) * 120}, 75%, 45%)`;
-                                  return (
-                                    <td key={target.username} style={{ padding: '6px', border: '1px solid rgba(255,255,255,0.05)', color, fontWeight: 700 }}>
-                                      {(probability * 100).toFixed(0)}%
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div style={{
-                        padding: '15px',
-                        borderRadius: '8px',
-                        backgroundColor: 'rgba(255,255,255,0.02)',
-                        border: '1px dashed rgba(255,255,255,0.08)',
-                        textAlign: 'center',
-                        color: 'var(--text-muted)',
-                        fontSize: '0.75rem'
-                      }}>
-                        🔒 Ma trận nghi ngờ đang được các AI cập nhật ẩn trong đầu... Sẽ công bố đầy đủ sau khi trận đấu kết thúc.
-                      </div>
-                    )}
-                  </div>
                 </div>
-              );
-            })()}
 
-            {/* TAB 2: Claim System */}
-            {activeTab === 'claims' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Hệ thống Claim lưu trữ các tuyên bố, cáo buộc và phe phái tự phong của các AI Agent để theo dõi tính nhất quán.
-                </p>
-                {state.claims.length === 0 ? (
-                  <div style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '30px' }}>
-                    Chưa có Claim nào được đưa ra.
+                {/* Right Column: Suspicion Matrix */}
+                <div className="werewolf-bottom-stats-col-right">
+                  <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '10px' }}>
+                    🔍 MA TRẬN NGHI NGỜ (BELIEF MATRIX)
                   </div>
-                ) : (
-                  state.claims.map(claim => (
-                    <div key={claim.id} style={{
-                      padding: '10px',
+                  
+                  {state.status === 'finished' ? (
+                    <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'center' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                            <th style={{ padding: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>{"Nghi ngờ ->"}</th>
+                            {state.players.map(p => (
+                              <th key={p.username} style={{ padding: '8px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '0.65rem' }}>
+                                {p.username.substring(0, 5)}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {state.players.map(p => (
+                            <tr key={p.username}>
+                              <td style={{ padding: '8px', border: '1px solid rgba(255,255,255,0.05)', fontWeight: 800 }}>
+                                {p.username.substring(0, 5)}
+                              </td>
+                              {state.players.map(target => {
+                                if (p.username === target.username) {
+                                  return <td key={target.username} style={{ padding: '8px', border: '1px solid rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>-</td>;
+                                }
+                                const probability = p.privateMemory?.suspicions?.[target.username] ?? 0;
+                                const color = `hsl(${(1 - probability) * 120}, 75%, 45%)`;
+                                return (
+                                  <td key={target.username} style={{ padding: '8px', border: '1px solid rgba(255,255,255,0.05)', color, fontWeight: 700 }}>
+                                    {(probability * 100).toFixed(0)}%
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '25px',
                       borderRadius: '8px',
                       backgroundColor: 'rgba(255,255,255,0.02)',
-                      border: '1px solid rgba(255,255,255,0.05)'
+                      border: '1px dashed rgba(255,255,255,0.08)',
+                      textAlign: 'center',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.8rem'
                     }}>
-                      <div style={{ fontWeight: 800, color: 'var(--accent-yellow)', marginBottom: '3px' }}>
-                        👤 {claim.creator} tuyên bố:
+                      🔒 Ma trận nghi ngờ đang được các AI cập nhật ẩn trong đầu... Sẽ công bố đầy đủ sau khi trận đấu kết thúc.
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* TAB 2: Claim System */}
+          {activeTab === 'claims' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '5px' }}>
+                Hệ thống Claim lưu trữ các tuyên bố, cáo buộc và phe phái tự phong của các AI Agent để theo dõi tính nhất quán.
+              </p>
+              {state.claims.length === 0 ? (
+                <div style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '30px' }}>
+                  Chưa có Claim nào được đưa ra.
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '15px' }}>
+                  {state.claims.map(claim => (
+                    <div key={claim.id} style={{
+                      padding: '12px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 800, color: 'var(--accent-yellow)', marginBottom: '5px' }}>
+                          👤 {claim.creator} tuyên bố:
+                        </div>
+                        <div style={{ fontSize: '0.75rem', fontStyle: 'italic', marginBottom: '10px', color: '#fff' }}>
+                          "{claim.text}"
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.75rem', fontStyle: 'italic', marginBottom: '6px', color: '#fff' }}>
-                        "{claim.text}"
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px', fontSize: '0.65rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.65rem', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '6px' }}>
                         <span style={{ color: 'var(--accent-green)' }}>
                           👍 Đồng thuận ({claim.supportedBy.length}): {claim.supportedBy.join(', ') || 'không có'}
                         </span>
@@ -908,56 +912,54 @@ export default function WerewolfGameView({ game }: WerewolfGameViewProps) {
                         </span>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-            {/* TAB 3: Integration Guide */}
-            {activeTab === 'guide' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', color: 'var(--text-secondary)' }}>
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fff', margin: 0 }}>🐺 HƯỚNG DẪN TÍCH HỢP CHO BOT</h3>
-                <p style={{ margin: 0, fontSize: '0.75rem', lineHeight: 1.4 }}>
-                  Developer có thể tự viết bot bằng mọi ngôn ngữ để tham gia phòng chơi Ma Sói. Quy trình giao tiếp của bot qua các API sau:
-                </p>
+          {/* TAB 3: Integration Guide */}
+          {activeTab === 'guide' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', color: 'var(--text-secondary)' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', margin: 0 }}>🐺 HƯỚNG DẪN TÍCH HỢP CHO BOT</h3>
+              <p style={{ margin: 0, fontSize: '0.8rem', lineHeight: 1.4 }}>
+                Developer có thể tự viết bot bằng mọi ngôn ngữ để tham gia phòng chơi Ma Sói. Quy trình giao tiếp của bot qua 3 bước:
+              </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ padding: '8px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <strong style={{ color: 'var(--accent-cyan)' }}>1. Tham gia phòng chờ</strong>
-                    <code style={{ display: 'block', padding: '3px', backgroundColor: '#000', borderRadius: '4px', fontSize: '0.65rem', marginTop: '3px', color: '#60a5fa' }}>
-                      POST /api/bot/games/join
-                    </code>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Body: <code>{"{ \"gameId\": \"...\" }"}</code></span>
-                  </div>
+              <div className="werewolf-guide-grid">
+                <div style={{ padding: '12px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.8rem' }}>1. Tham gia phòng chờ</strong>
+                  <code style={{ display: 'block', padding: '5px', backgroundColor: '#000', borderRadius: '4px', fontSize: '0.65rem', marginTop: '5px', color: '#60a5fa', overflowX: 'auto' }}>
+                    POST /api/bot/games/join
+                  </code>
+                  <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '5px' }}>Body: <code>{"{ \"gameId\": \"...\" }"}</code></span>
+                </div>
 
-                  <div style={{ padding: '8px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <strong style={{ color: 'var(--accent-cyan)' }}>2. Lấy thông tin & Vai trò ẩn</strong>
-                    <code style={{ display: 'block', padding: '3px', backgroundColor: '#000', borderRadius: '4px', fontSize: '0.65rem', marginTop: '3px', color: '#60a5fa' }}>
-                      GET /api/bot/games/[gameId]
-                    </code>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Cung cấp token Bearer để thấy được vai trò ẩn và memory riêng của bot mình.</span>
-                  </div>
+                <div style={{ padding: '12px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.8rem' }}>2. Lấy thông tin & Vai trò ẩn</strong>
+                  <code style={{ display: 'block', padding: '5px', backgroundColor: '#000', borderRadius: '4px', fontSize: '0.65rem', marginTop: '5px', color: '#60a5fa', overflowX: 'auto' }}>
+                    GET /api/bot/games/[gameId]
+                  </code>
+                  <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '5px' }}>Cung cấp token Bearer để thấy được vai trò ẩn và memory riêng của bot mình.</span>
+                </div>
 
-                  <div style={{ padding: '8px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <strong style={{ color: 'var(--accent-cyan)' }}>3. Gửi hành động theo Phase</strong>
-                    <code style={{ display: 'block', padding: '3px', backgroundColor: '#000', borderRadius: '4px', fontSize: '0.65rem', marginTop: '3px', color: '#60a5fa' }}>
-                      POST /api/bot/games/[gameId]/werewolf/action
-                    </code>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      <span>• Phase 1: <code>{"{\"action\": \"analysis\", \"suspicions\": {...}, \"reasoning\": \"...\"}"}</code></span>
-                      <span>• Phase 2: <code>{"{\"action\": \"statement\", \"text\": \"...\"}"}</code></span>
-                      <span>• Phase 3: <code>{"{\"action\": \"challenge\", \"target\": \"...\", \"question\": \"...\"}"}</code> hoặc <code>{"{\"action\": \"response\", \"answer\": \"...\"}"}</code></span>
-                      <span>• Phase 4: <code>{"{\"action\": \"beliefs\", \"beliefs\": {...}}"}</code></span>
-                      <span>• Phase 5: <code>{"{\"action\": \"vote\", \"vote\": \"...\"}"}</code></span>
-                      <span>• Bất kỳ lúc nào (Độc lập lượt đi): <code>{"{\"action\": \"emotion\", \"emotion\": \"Cay cú\"}"}</code></span>
-                    </div>
+                <div style={{ padding: '12px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <strong style={{ color: 'var(--accent-cyan)', fontSize: '0.8rem' }}>3. Gửi hành động theo Phase</strong>
+                  <code style={{ display: 'block', padding: '5px', backgroundColor: '#000', borderRadius: '4px', fontSize: '0.65rem', marginTop: '5px', color: '#60a5fa', overflowX: 'auto' }}>
+                    POST /api/bot/games/[gameId]/werewolf/action
+                  </code>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                    <span>• Phase 1: <code>{"{\"action\": \"analysis\", ...}"}</code></span>
+                    <span>• Phase 2: <code>{"{\"action\": \"statement\", \"text\": \"...\"}"}</code></span>
+                    <span>• Phase 3: <code>{"{\"action\": \"challenge\"}"}</code> / <code>{"{\"response\"}"}</code></span>
+                    <span>• Phase 4: <code>{"{\"action\": \"beliefs\"}"}</code></span>
+                    <span>• Phase 5: <code>{"{\"action\": \"vote\"}"}</code></span>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-
       </div>
     </div>
   );
